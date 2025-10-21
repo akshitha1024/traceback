@@ -1,9 +1,9 @@
-
 "use client";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Login() {
   const nav = useRouter();
@@ -11,35 +11,60 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // mock auth for now
-    setTimeout(() => {
-      localStorage.setItem("accessToken", "demo");
-      nav.push("/dashboard");
-    }, 300);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      setLoading(false);
+
+      if (!res.ok) {
+        toast.error(data.message, { duration: 5000 });
+        return;
+      }
+
+      localStorage.setItem("accessToken", data.token);
+      toast.success("Login successful! Redirecting to dashboard...", { duration: 5000 });
+      setTimeout(() => nav.push("/dashboard"), 2000);
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Something went wrong!", { duration: 5000 });
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      {/* Header */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: { fontSize: '16px', fontWeight: '500' },
+        }}
+      />
+
+     
       <header className="flex items-center justify-between px-6 py-4 lg:px-12">
         <Link href="/" className="hover:opacity-80 transition-opacity">
-          <Image 
-            src="/logo.png" 
-            alt="Traceback Logo" 
-            width={200} 
-            height={60}
-            className="h-12 w-auto sm:h-16"
-          />
+          <Image src="/logo.png" alt="Traceback Logo" width={200} height={60} className="h-12 w-auto sm:h-16" />
         </Link>
-        <Link href="/signup" className="bg-white/90 hover:bg-white text-gray-900 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+        <Link
+          href="/signup"
+          className="bg-white/90 hover:bg-white text-gray-900 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+        >
           Sign Up
         </Link>
       </header>
 
-      {/* Login Form */}
+     
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
@@ -49,26 +74,26 @@ export default function Login() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address
                 </label>
-                <input 
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50" 
-                  type="email" 
-                  value={email} 
-                  onChange={e=>setEmail(e.target.value)} 
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  required 
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Password
                 </label>
-                <input 
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50" 
-                  type="password" 
-                  value={password} 
-                  onChange={e=>setPassword(e.target.value)} 
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  required 
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50"
                 />
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -76,13 +101,19 @@ export default function Login() {
                   <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> 
                   Remember me
                 </label>
-                <button type="button" className="text-gray-600 hover:text-gray-800 font-medium transition-colors">
-                  Forgot password?
-                </button>
+                <button
+  type="button"
+  onClick={() => nav.push("/ForgetPassword")}
+  className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
+>
+  Forgot password?
+</button>
+
               </div>
-              <button 
-                className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+              <button
+                type="submit"
                 disabled={loading}
+                className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -93,7 +124,7 @@ export default function Login() {
               </button>
             </form>
             <div className="mt-6 text-center text-gray-600">
-              Don&apos;t have an account? {" "}
+              Don&apos;t have an account?{" "}
               <Link href="/signup" className="text-gray-900 hover:text-black font-medium transition-colors">
                 Sign up here
               </Link>
