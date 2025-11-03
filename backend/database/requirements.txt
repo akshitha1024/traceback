@@ -1,0 +1,14 @@
+# Database Requirements for TrackeBack MySQL Setup
+
+# MySQL connector for Python
+mysql-connector-python==8.2.0
+
+# Environment variables management
+python-dotenv==1.0.0
+
+# Fake data generation
+faker==20.1.0
+
+# Additional utilities
+PyMySQL==1.1.0  # Alternative MySQL connector
+cryptography==41.0.8  # For secure connections

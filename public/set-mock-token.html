@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Mock Session Token</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4F46E5;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #3B3AD9;
+        }
+        .success {
+            color: #059669;
+            margin-top: 15px;
+            padding: 10px;
+            background: #ECFDF5;
+            border-radius: 4px;
+        }
+        .info {
+            color: #1D4ED8;
+            margin-top: 15px;
+            padding: 10px;
+            background: #EFF6FF;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mock Session Token Setup</h1>
+        <p>This page helps you set a mock session token to bypass login during development.</p>
+        
+        <button onclick="setMockToken()">Set Mock Session Token</button>
+        <button onclick="clearToken()">Clear Session Token</button>
+        <button onclick="checkToken()">Check Current Token</button>
+        
+        <div id="result"></div>
+        
+        <div class="info">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>Click "Set Mock Session Token" to create a fake login session</li>
+                <li>Go to <a href="/dashboard" target="_blank">Dashboard</a> - it should work without login</li>
+                <li>Use "Clear Session Token" to remove the mock session</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function setMockToken() {
+            // Set mock session token
+            localStorage.setItem("sessionToken", "mock-dev-token-12345");
+            
+            // Set mock user data
+            const mockUser = {
+                email: "dev@traceback.com",
+                name: "Developer User",
+                id: "dev-user-123"
+            };
+            localStorage.setItem("user", JSON.stringify(mockUser));
+            
+            document.getElementById("result").innerHTML = 
+                '<div class="success">✅ Mock session token set successfully!<br>' +
+                'Token: mock-dev-token-12345<br>' +
+                'User: ' + mockUser.name + ' (' + mockUser.email + ')<br>' +
+                '<strong>You can now access the dashboard without logging in!</strong></div>';
+        }
+        
+        function clearToken() {
+            localStorage.removeItem("sessionToken");
+            localStorage.removeItem("user");
+            
+            document.getElementById("result").innerHTML = 
+                '<div class="info">🧹 Session tokens cleared. You will need to login normally now.</div>';
+        }
+        
+        function checkToken() {
+            const token = localStorage.getItem("sessionToken");
+            const user = localStorage.getItem("user");
+            
+            if (token) {
+                const userData = user ? JSON.parse(user) : null;
+                document.getElementById("result").innerHTML = 
+                    '<div class="info">📋 Current session:<br>' +
+                    'Token: ' + token + '<br>' +
+                    (userData ? 'User: ' + userData.name + ' (' + userData.email + ')' : 'No user data') + '</div>';
+            } else {
+                document.getElementById("result").innerHTML = 
+                    '<div class="info">❌ No session token found. You need to login or set a mock token.</div>';
+            }
+        }
+        
+        // Check token status on page load
+        window.onload = function() {
+            checkToken();
+        };
+    </script>
+</body>
+</html>

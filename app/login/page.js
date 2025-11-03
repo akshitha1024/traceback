@@ -2,23 +2,57 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export default function Login() {
   const nav = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    setError("");
+    
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required");
+      return;
+    }
+    
     setLoading(true);
-    // mock auth for now
-    setTimeout(() => {
-      localStorage.setItem("accessToken", "demo");
-      nav.push("/dashboard");
-    }, 300);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password: password
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Store session token
+        localStorage.setItem("sessionToken", data.session_token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        
+        const redirectTo = searchParams.get("redirect") || "/dashboard";
+        nav.push(redirectTo);
+      } else {
+        setError(data.error || "Login failed");
+      }
+    } catch (err) {
+      setError("Failed to connect to server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,6 +78,11 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
             <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">Welcome Back</h2>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
+                {error}
+              </div>
+            )}
             <form onSubmit={submit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackeBack Database Documentation - Presentation</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .document-container {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4c63d2 0%, #6c5ce7 100%);
+            color: white;
+            padding: 60px 60px 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            letter-spacing: -2px;
+        }
+
+        .header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .header .meta {
+            margin-top: 30px;
+            font-size: 1rem;
+            opacity: 0.8;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .content {
+            padding: 60px;
+        }
+
+        .section {
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 3px solid #4c63d2;
+            padding-bottom: 10px;
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 30px 25px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #4c63d2;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(76, 99, 210, 0.15);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #4c63d2;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.95rem;
+            color: #6c757d;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .table-grid {
+            display: grid;
+            gap: 40px;
+        }
+
+        .table-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            border-left: 6px solid #4c63d2;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .table-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .table-count {
+            background: #4c63d2;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .schema-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .schema-table th {
+            background: #4c63d2;
+            color: white;
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .schema-table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.95rem;
+        }
+
+        .schema-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .schema-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .column-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .pk-indicator {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .fk-indicator {
+            background: #f39c12;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .sample-data {
+            margin-top: 20px;
+        }
+
+        .sample-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #4c63d2;
+            margin-bottom: 15px;
+        }
+
+        .sample-entry {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .sample-entry:nth-child(even) {
+            border-left-color: #17a2b8;
+        }
+
+        .sample-field {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 15px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .field-name {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .field-value {
+            color: #6c757d;
+            word-break: break-word;
+        }
+
+        .relationships-section {
+            background: #e8f4fd;
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #b8daff;
+        }
+
+        .relationship-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            font-size: 1.1rem;
+            color: #2d3748;
+        }
+
+        .relationship-arrow {
+            margin: 0 15px;
+            color: #4c63d2;
+            font-weight: bold;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: #4c63d2;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(76, 99, 210, 0.15);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+
+        .api-endpoints {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 6px solid #28a745;
+        }
+
+        .endpoint {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #dee2e6;
+            font-family: 'Courier New', monospace;
+        }
+
+        .endpoint:last-child {
+            border-bottom: none;
+        }
+
+        .method {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 15px;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .url {
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .print-version {
+            display: none;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            
+            .document-container {
+                box-shadow: none;
+                margin: 0;
+            }
+            
+            .print-version {
+                display: block;
+                page-break-after: always;
+            }
+        }
+
+        .footer {
+            background: #2d3748;
+            color: white;
+            padding: 40px 60px;
+            text-align: center;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .footer-section h4 {
+            color: #4c63d2;
+            margin-bottom: 15px;
+        }
+
+        .footer-section p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="document-container">
+        <div class="header">
+            <h1>🗄️ TrackeBack Database</h1>
+            <div class="subtitle">Comprehensive Lost & Found Management System</div>
+            <div class="meta">
+                <span>📊 100,000+ Items</span>
+                <span>🏫 Kent State University</span>
+                <span>📅 October 2025</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Executive Summary -->
+            <div class="section">
+                <h2 class="section-title">📋 Executive Summary</h2>
+                <div class="stats-overview">
+                    <div class="stat-card">
+                        <div class="stat-number">100,000</div>
+                        <div class="stat-label">Total Items</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">50,000</div>
+                        <div class="stat-label">Lost Items</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">50,000</div>
+                        <div class="stat-label">Found Items</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">10</div>
+                        <div class="stat-label">Categories</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">30</div>
+                        <div class="stat-label">Locations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">150,000</div>
+                        <div class="stat-label">Security Questions</div>
+                    </div>
+                </div>
+                <p style="font-size: 1.1rem; color: #495057; text-align: center; background: #e8f4fd; padding: 25px; border-radius: 12px; border-left: 6px solid #4c63d2;">
+                    <strong>TrackeBack</strong> is a comprehensive lost and found management system designed specifically for Kent State University. 
+                    The database contains realistic test data with complete item tracking, security verification, and privacy protection features.
+                </p>
+            </div>
+
+            <!-- Database Schema -->
+            <div class="section">
+                <h2 class="section-title">🏗️ Database Schema</h2>
+                <div class="table-grid">
+                    <!-- Categories Table -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-name">📋 CATEGORIES</div>
+                            <div class="table-count">10 Records</div>
+                        </div>
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Constraints</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="column-name">id</span><span class="pk-indicator">PK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>PRIMARY KEY</td>
+                                    <td>Unique category identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">name</span></td>
+                                    <td>TEXT</td>
+                                    <td>NOT NULL</td>
+                                    <td>Category name (Electronics, Clothing, etc.)</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">description</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Detailed category description</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">created_at</span></td>
+                                    <td>TIMESTAMP</td>
+                                    <td>DEFAULT CURRENT_TIMESTAMP</td>
+                                    <td>Record creation timestamp</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="sample-data">
+                            <div class="sample-title">📝 Sample Categories</div>
+                            <div class="sample-entry">
+                                <div class="sample-field">
+                                    <span class="field-name">Electronics:</span>
+                                    <span class="field-value">Phones, laptops, tablets, chargers, headphones</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Clothing:</span>
+                                    <span class="field-value">Jackets, shirts, shoes, hats, scarves</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Bags:</span>
+                                    <span class="field-value">Backpacks, purses, tote bags, laptop bags</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Locations Table -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-name">📍 LOCATIONS</div>
+                            <div class="table-count">30 Records</div>
+                        </div>
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Constraints</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="column-name">id</span><span class="pk-indicator">PK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>PRIMARY KEY</td>
+                                    <td>Unique location identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">name</span></td>
+                                    <td>TEXT</td>
+                                    <td>NOT NULL</td>
+                                    <td>Location name</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">building_code</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Official building code</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">latitude</span></td>
+                                    <td>REAL</td>
+                                    <td></td>
+                                    <td>GPS latitude coordinate</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">longitude</span></td>
+                                    <td>REAL</td>
+                                    <td></td>
+                                    <td>GPS longitude coordinate</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="sample-data">
+                            <div class="sample-title">📝 Sample Kent State Locations</div>
+                            <div class="sample-entry">
+                                <div class="sample-field">
+                                    <span class="field-name">University Library (LIBR):</span>
+                                    <span class="field-value">Main campus library with multiple floors</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Kent Student Center (KSC):</span>
+                                    <span class="field-value">Hub of campus life and dining</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Recreation Center (REC):</span>
+                                    <span class="field-value">Fitness and athletics facility</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lost Items Table -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-name">❌ LOST ITEMS</div>
+                            <div class="table-count">50,000 Records</div>
+                        </div>
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Key</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="column-name">id</span><span class="pk-indicator">PK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>PRIMARY KEY</td>
+                                    <td>Unique item identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">title</span></td>
+                                    <td>TEXT</td>
+                                    <td>NOT NULL</td>
+                                    <td>Item title/name</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">category_id</span><span class="fk-indicator">FK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>FOREIGN KEY</td>
+                                    <td>Reference to categories</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">location_id</span><span class="fk-indicator">FK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>FOREIGN KEY</td>
+                                    <td>Reference to locations</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">color</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Item color</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">date_lost</span></td>
+                                    <td>DATE</td>
+                                    <td>NOT NULL</td>
+                                    <td>When item was lost</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">user_name</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Person who lost item</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">user_email</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Contact email</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="sample-data">
+                            <div class="sample-title">📝 Sample Lost Items</div>
+                            <div class="sample-entry">
+                                <div class="sample-field">
+                                    <span class="field-name">Gaming Headset:</span>
+                                    <span class="field-value">RGB gaming headset with microphone, Black, Lost at University Library</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">iPhone 15 Pro:</span>
+                                    <span class="field-value">Black iPhone with MagSafe case, Lost at Student Center</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Power Bank:</span>
+                                    <span class="field-value">Portable battery pack charger, Yellow, Lost at Recreation Center</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Found Items Table -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-name">✅ FOUND ITEMS</div>
+                            <div class="table-count">50,000 Records</div>
+                        </div>
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Key</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="column-name">id</span><span class="pk-indicator">PK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>PRIMARY KEY</td>
+                                    <td>Unique item identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">title</span></td>
+                                    <td>TEXT</td>
+                                    <td>NOT NULL</td>
+                                    <td>Item title/name</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">date_found</span></td>
+                                    <td>DATE</td>
+                                    <td>NOT NULL</td>
+                                    <td>When item was found</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">current_location</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Where item is stored</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">finder_name</span></td>
+                                    <td>TEXT</td>
+                                    <td></td>
+                                    <td>Person who found item</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">is_private</span></td>
+                                    <td>BOOLEAN</td>
+                                    <td>DEFAULT 1</td>
+                                    <td>Privacy protection flag</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">is_claimed</span></td>
+                                    <td>BOOLEAN</td>
+                                    <td>DEFAULT 0</td>
+                                    <td>Whether item was claimed</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="sample-data">
+                            <div class="sample-title">📝 Sample Found Items</div>
+                            <div class="sample-entry">
+                                <div class="sample-field">
+                                    <span class="field-name">Beats Headphones:</span>
+                                    <span class="field-value">Red Beats Solo headphones, Found at Library, Stored at Front Desk</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Kindle E-Reader:</span>
+                                    <span class="field-value">Amazon Kindle with case, Found at Art Building, Stored at Maintenance Office</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Backpack:</span>
+                                    <span class="field-value">Blue Nike backpack with laptop, Found at Student Center, Stored at Security Office</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Questions Table -->
+                    <div class="table-card">
+                        <div class="table-header">
+                            <div class="table-name">🔒 SECURITY QUESTIONS</div>
+                            <div class="table-count">150,000 Records</div>
+                        </div>
+                        <table class="schema-table">
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Type</th>
+                                    <th>Key</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="column-name">id</span><span class="pk-indicator">PK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>PRIMARY KEY</td>
+                                    <td>Unique question identifier</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">found_item_id</span><span class="fk-indicator">FK</span></td>
+                                    <td>INTEGER</td>
+                                    <td>FOREIGN KEY</td>
+                                    <td>Reference to found_items</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">question</span></td>
+                                    <td>TEXT</td>
+                                    <td>NOT NULL</td>
+                                    <td>Security question text</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">answer</span></td>
+                                    <td>TEXT</td>
+                                    <td>NOT NULL</td>
+                                    <td>Correct answer</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="column-name">question_type</span></td>
+                                    <td>TEXT</td>
+                                    <td>DEFAULT 'text'</td>
+                                    <td>Question type (text, number, yesno, brand)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="sample-data">
+                            <div class="sample-title">📝 Sample Security Questions</div>
+                            <div class="sample-entry">
+                                <div class="sample-field">
+                                    <span class="field-name">Battery Question:</span>
+                                    <span class="field-value">"What's the battery percentage when found?" → "4%" (number)</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Brand Question:</span>
+                                    <span class="field-value">"What brand is this device?" → "beats" (brand)</span>
+                                </div>
+                                <div class="sample-field">
+                                    <span class="field-name">Yes/No Question:</span>
+                                    <span class="field-value">"Are there any stickers on it?" → "no" (yesno)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Relationships -->
+            <div class="section">
+                <h2 class="section-title">🔗 Table Relationships</h2>
+                <div class="relationships-section">
+                    <div class="relationship-item">
+                        <strong>lost_items</strong>
+                        <span class="relationship-arrow">→</span>
+                        <strong>categories</strong>
+                        <span style="margin-left: 15px; color: #6c757d;">(category_id)</span>
+                    </div>
+                    <div class="relationship-item">
+                        <strong>lost_items</strong>
+                        <span class="relationship-arrow">→</span>
+                        <strong>locations</strong>
+                        <span style="margin-left: 15px; color: #6c757d;">(location_id)</span>
+                    </div>
+                    <div class="relationship-item">
+                        <strong>found_items</strong>
+                        <span class="relationship-arrow">→</span>
+                        <strong>categories</strong>
+                        <span style="margin-left: 15px; color: #6c757d;">(category_id)</span>
+                    </div>
+                    <div class="relationship-item">
+                        <strong>found_items</strong>
+                        <span class="relationship-arrow">→</span>
+                        <strong>locations</strong>
+                        <span style="margin-left: 15px; color: #6c757d;">(location_id)</span>
+                    </div>
+                    <div class="relationship-item">
+                        <strong>security_questions</strong>
+                        <span class="relationship-arrow">→</span>
+                        <strong>found_items</strong>
+                        <span style="margin-left: 15px; color: #6c757d;">(found_item_id)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Features -->
+            <div class="section">
+                <h2 class="section-title">🎯 Key Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title">Security Verification</div>
+                        <div class="feature-desc">3-question verification system for found items to ensure rightful ownership claims</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <div class="feature-title">Privacy Protection</div>
+                        <div class="feature-desc">Time-based privacy system protects sensitive found items with automatic expiration</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🏫</div>
+                        <div class="feature-title">Campus Integration</div>
+                        <div class="feature-desc">Real Kent State University locations with GPS coordinates and building codes</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <div class="feature-title">Comprehensive Data</div>
+                        <div class="feature-desc">100,000 realistic items with complete contact information and detailed descriptions</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔍</div>
+                        <div class="feature-title">Advanced Search</div>
+                        <div class="feature-desc">Multi-criteria filtering by category, location, date, color, and text search</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🌐</div>
+                        <div class="feature-title">REST API</div>
+                        <div class="feature-desc">Complete RESTful API with pagination, filtering, and CRUD operations</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Endpoints -->
+            <div class="section">
+                <h2 class="section-title">🌐 API Endpoints</h2>
+                <div class="api-endpoints">
+                    <div class="endpoint">
+                        <span class="method">GET</span>
+                        <span class="url">http://localhost:5000/</span>
+                        <span style="margin-left: 15px; color: #6c757d;">- API Information</span>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method">GET</span>
+                        <span class="url">http://localhost:5000/health</span>
+                        <span style="margin-left: 15px; color: #6c757d;">- Database Health & Statistics</span>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method">GET</span>
+                        <span class="url">http://localhost:5000/api/categories</span>
+                        <span style="margin-left: 15px; color: #6c757d;">- All Categories</span>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method">GET</span>
+                        <span class="url">http://localhost:5000/api/locations</span>
+                        <span style="margin-left: 15px; color: #6c757d;">- All Locations</span>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method">GET</span>
+                        <span class="url">http://localhost:5000/api/lost-items</span>
+                        <span style="margin-left: 15px; color: #6c757d;">- Lost Items (with pagination & filters)</span>
+                    </div>
+                    <div class="endpoint">
+                        <span class="method">GET</span>
+                        <span class="url">http://localhost:5000/api/found-items</span>
+                        <span style="margin-left: 15px; color: #6c757d;">- Found Items (with pagination & filters)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>🎯 Project Scope</h4>
+                    <p>Comprehensive lost and found management system with realistic test data for Kent State University campus.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>💾 Technology Stack</h4>
+                    <p>SQLite Database, Python Flask API, REST Architecture, No external dependencies for images.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>📊 Scale & Performance</h4>
+                    <p>100,000+ items with advanced filtering, pagination, and security features for production readiness.</p>
+                </div>
+            </div>
+            <div style="border-top: 1px solid #495057; padding-top: 20px; margin-top: 20px; opacity: 0.7;">
+                <p>TrackeBack Database Documentation - Generated October 21, 2025</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive features for presentation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add hover effects to statistics
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-5px) scale(1.02)';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+
+            // Add print functionality
+            const printBtn = document.createElement('button');
+            printBtn.innerHTML = '🖨️ Print Documentation';
+            printBtn.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                background: #4c63d2;
+                color: white;
+                border: none;
+                padding: 15px 25px;
+                border-radius: 50px;
+                font-weight: 600;
+                box-shadow: 0 10px 25px rgba(76, 99, 210, 0.3);
+                cursor: pointer;
+                z-index: 1000;
+                transition: all 0.3s ease;
+            `;
+            printBtn.addEventListener('click', () => window.print());
+            document.body.appendChild(printBtn);
+        });
+    </script>
+</body>
+</html>

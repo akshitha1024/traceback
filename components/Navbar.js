@@ -9,8 +9,24 @@ export default function Navbar() {
   const hide = ["/", "/login", "/signup", "/verify-email"].includes(pathname);
   if (hide) return null;
 
-  const logout = () => {
-    localStorage.removeItem("accessToken");
+  const logout = async () => {
+    const token = localStorage.getItem("sessionToken");
+    
+    if (token) {
+      try {
+        await fetch('http://localhost:5000/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      } catch (err) {
+        console.error("Logout API call failed:", err);
+      }
+    }
+    
+    localStorage.removeItem("sessionToken");
+    localStorage.removeItem("user");
     router.push("/login");
   };
 
@@ -26,12 +42,22 @@ export default function Navbar() {
             className="h-16 w-auto"
           />
         </Link>
-        <button 
-          onClick={logout} 
-          className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-        >
-          Log Out
-        </button>
+
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/profile/create" 
+            className="bg-white/90 hover:bg-white text-gray-900 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <span>👤</span>
+            Profile
+          </Link>
+          <button 
+            onClick={logout} 
+            className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            Log Out
+          </button>
+        </div>
       </div>
     </header>
   );
