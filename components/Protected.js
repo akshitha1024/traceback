@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { startActivityMonitor, stopActivityMonitor } from "@/utils/activityMonitor";
 
 export default function Protected({ children, requireProfile = true }) {
   const router = useRouter();
@@ -19,7 +20,33 @@ export default function Protected({ children, requireProfile = true }) {
         return;
       }
       
+      // Check if user account still exists
+      try {
+        const userCheckResponse = await fetch(`http://localhost:5000/api/users/verify/${user.id}`);
+        
+        if (userCheckResponse.status === 404) {
+          // User account has been deleted
+          alert("⚠️ Your profile has been deleted. You will be logged out.");
+          localStorage.removeItem("sessionToken");
+          localStorage.removeItem("user");
+          localStorage.removeItem("studentProfile");
+          localStorage.removeItem("studentProfilePhoto");
+          router.replace("/login");
+          return;
+        }
+        
+        if (!userCheckResponse.ok) {
+          console.error("Failed to verify user account");
+        }
+      } catch (error) {
+        console.error("Error checking user account:", error);
+        // Continue if there's a network error - don't block access
+      }
+      
       setIsAuthenticated(true);
+      
+      // Activity monitor disabled - session doesn't persist across tab closures
+      // startActivityMonitor(router);
       
       try {
         // Check if profile is complete (if required)
@@ -98,6 +125,11 @@ export default function Protected({ children, requireProfile = true }) {
     };
     
     checkAuth();
+    
+    // Cleanup activity monitor on unmount
+    return () => {
+      stopActivityMonitor();
+    };
   }, [router, pathname, requireProfile]);
 
   if (isLoading) {

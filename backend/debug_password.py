@@ -7,7 +7,7 @@ import sqlite3
 import hashlib
 
 # Database path
-DB_PATH = "trackeback_100k.db"
+DB_PATH = "traceback_100k.db"
 
 def debug_password():
     """Debug the password hashing issue"""

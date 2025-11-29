@@ -15,7 +15,7 @@ from PIL import Image
 import json
 
 # Database configuration
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'trackeback_100k.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'traceback_100k.db')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 PROFILE_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, 'profiles')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -81,7 +81,7 @@ def get_user_profile(user_id):
         
         cursor.execute("""
             SELECT id, email, first_name, last_name, full_name, student_id,
-                   profile_image, bio, phone_number, year_of_study, 
+                   profile_image, bio, interests, phone_number, year_of_study, 
                    major, building_preference, notification_preferences, 
                    privacy_settings, profile_completed, profile_updated_at,
                    created_at, last_login, is_verified
@@ -120,7 +120,7 @@ def update_user_profile(user_id, profile_data):
         update_values = []
         
         allowed_fields = {
-            'first_name', 'last_name', 'student_id', 'bio', 'phone_number', 
+            'first_name', 'last_name', 'student_id', 'bio', 'interests', 'phone_number', 
             'year_of_study', 'major', 'building_preference', 
             'notification_preferences', 'privacy_settings', 'profile_image'
         }
@@ -200,7 +200,8 @@ def create_profile_endpoints(app):
     
     @app.route('/api/profile/<int:user_id>', methods=['PUT'])
     def update_profile(user_id):
-        """Update user profile"""
+        """Update user profile - validates that student ID matches first and last name"""
+        conn = None
         try:
             data = request.get_json()
             
@@ -210,16 +211,90 @@ def create_profile_endpoints(app):
                     'message': 'No data provided'
                 }), 400
             
-            success, message = update_user_profile(user_id, data)
+            # Get current user data to verify identity
+            try:
+                conn = sqlite3.connect(DB_PATH, timeout=20.0)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT first_name, last_name, student_id 
+                    FROM users 
+                    WHERE id = ? AND is_active = 1
+                ''', (user_id,))
+                user = cursor.fetchone()
+            except sqlite3.Error as db_error:
+                if conn:
+                    conn.close()
+                print(f"Database error during validation: {db_error}")
+                return jsonify({
+                    'success': False,
+                    'message': 'Unable to update profile. Please try again.'
+                }), 500
+            finally:
+                if conn:
+                    conn.close()
+            
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found'
+                }), 404
+            
+            current_first_name, current_last_name, current_student_id = user
+            
+            # If student_id is being provided/updated, verify it matches the name
+            student_id_to_check = data.get('student_id', current_student_id)
+            
+            if student_id_to_check and current_student_id:
+                # For existing users updating profile, verify student ID matches their registered name
+                if student_id_to_check != current_student_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Unable to update profile. Please verify your information.'
+                    }), 403
+            
+            # If first_name or last_name are being changed, verify with student_id
+            new_first_name = data.get('first_name', current_first_name)
+            new_last_name = data.get('last_name', current_last_name)
+            
+            if (new_first_name != current_first_name or new_last_name != current_last_name):
+                # Name change detected - require student ID validation
+                if not student_id_to_check:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Unable to update profile. Please verify your information.'
+                    }), 400
+                
+                # Verify the student ID matches the current user's ID
+                if current_student_id and student_id_to_check != current_student_id:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Unable to update profile. Please verify your information.'
+                    }), 403
+            
+            try:
+                success, message = update_user_profile(user_id, data)
+            except sqlite3.Error as db_error:
+                print(f"Database error during update: {db_error}")
+                return jsonify({
+                    'success': False,
+                    'message': 'Unable to update profile. Please try again.'
+                }), 500
             
             if success:
                 # Return updated profile
-                updated_profile = get_user_profile(user_id)
-                return jsonify({
-                    'success': True,
-                    'message': message,
-                    'profile': updated_profile
-                })
+                try:
+                    updated_profile = get_user_profile(user_id)
+                    return jsonify({
+                        'success': True,
+                        'message': message,
+                        'profile': updated_profile
+                    })
+                except sqlite3.Error as db_error:
+                    print(f"Database error fetching updated profile: {db_error}")
+                    return jsonify({
+                        'success': False,
+                        'message': 'Profile updated but unable to retrieve updated data.'
+                    }), 500
             else:
                 return jsonify({
                     'success': False,
@@ -227,9 +302,10 @@ def create_profile_endpoints(app):
                 }), 400
                 
         except Exception as e:
+            print(f"Unexpected error in update_profile: {str(e)}")
             return jsonify({
                 'success': False,
-                'message': f'Error updating profile: {str(e)}'
+                'message': 'Unable to update profile. Please try again.'
             }), 500
     
     @app.route('/api/profile/<int:user_id>/image', methods=['POST'])

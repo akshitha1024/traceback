@@ -7,7 +7,7 @@ import sqlite3
 import random
 import os
 
-DB_PATH = "trackeback_100k.db"
+DB_PATH = "traceback_100k.db"
 
 def generate_kent_email(name):
     """Generate a Kent State email from a name"""

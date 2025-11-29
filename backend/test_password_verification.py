@@ -12,7 +12,7 @@ def test_password_verification():
     test_password = "password123"
     
     # Get the stored hash from database
-    conn = sqlite3.connect('trackeback_100k.db')
+    conn = sqlite3.connect('traceback_100k.db')
     c = conn.cursor()
     
     c.execute('SELECT email, password_hash FROM users WHERE email = ?', ('achapala@kent.edu',))

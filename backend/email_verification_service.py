@@ -12,10 +12,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 import json
+import threading
 from flask import request, jsonify
 
 class EmailVerificationService:
-    def __init__(self, db_path="trackeback_100k.db"):
+    def __init__(self, db_path="traceback_100k.db"):
         self.db_path = db_path
         
         # Try to load email config, fall back to default
@@ -136,8 +137,38 @@ class EmailVerificationService:
         """
         return html_content
     
+    def _send_email_async(self, email, verification_code, item_title, item_type):
+        """Send email in background thread"""
+        try:
+            # Create email
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = f"TrackeBack Verification Code: {verification_code}"
+            msg['From'] = f"{self.smtp_config['from_name']} <{self.smtp_config['email']}>"
+            msg['To'] = email
+            
+            # Create HTML content
+            html_content = self.create_email_template(verification_code, item_title, item_type)
+            html_part = MIMEText(html_content, 'html')
+            msg.attach(html_part)
+            
+            # Send email with timeout
+            server = smtplib.SMTP(self.smtp_config['smtp_server'], self.smtp_config['smtp_port'], timeout=10)
+            server.starttls()
+            server.login(self.smtp_config['email'], self.smtp_config['password'])
+            
+            text = msg.as_string()
+            server.sendmail(self.smtp_config['email'], email, text)
+            server.quit()
+            
+            print(f"✅ Verification email sent successfully to {email}")
+            
+        except smtplib.SMTPException as e:
+            print(f"❌ SMTP error sending email to {email}: {str(e)}")
+        except Exception as e:
+            print(f"❌ Error sending email to {email}: {str(e)}")
+    
     def send_verification_email(self, email, item_title=None, item_type="lost", item_id=None):
-        """Send verification code to email address"""
+        """Send verification code to email address (non-blocking)"""
         
         # Validate Kent State email
         if not email.lower().endswith('@kent.edu'):
@@ -165,31 +196,16 @@ class EmailVerificationService:
         conn.commit()
         conn.close()
         
-        try:
-            # Create email
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = f"TrackeBack Verification Code: {verification_code}"
-            msg['From'] = f"{self.smtp_config['from_name']} <{self.smtp_config['email']}>"
-            msg['To'] = email
-            
-            # Create HTML content
-            html_content = self.create_email_template(verification_code, item_title, item_type)
-            html_part = MIMEText(html_content, 'html')
-            msg.attach(html_part)
-            
-            # Send email
-            server = smtplib.SMTP(self.smtp_config['smtp_server'], self.smtp_config['smtp_port'])
-            server.starttls()
-            server.login(self.smtp_config['email'], self.smtp_config['password'])
-            
-            text = msg.as_string()
-            server.sendmail(self.smtp_config['email'], email, text)
-            server.quit()
-            
-            return True, f"Verification code sent to {email}"
-            
-        except Exception as e:
-            return False, f"Failed to send email: {str(e)}"
+        # Send email in background thread (non-blocking)
+        email_thread = threading.Thread(
+            target=self._send_email_async,
+            args=(email, verification_code, item_title, item_type),
+            daemon=True
+        )
+        email_thread.start()
+        
+        print(f"📧 Verification code generated and email queued for {email}")
+        return True, f"Verification code sent to {email}"
     
     def verify_code(self, email, code):
         """Verify the email code"""
@@ -255,6 +271,68 @@ class EmailVerificationService:
         conn.close()
         
         return count > 0
+    
+    def send_generic_email(self, to_email, subject, body):
+        """Send a generic email (for moderation notifications, etc.)"""
+        try:
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = f"{self.smtp_config['from_name']} <{self.smtp_config['email']}>"
+            msg['To'] = to_email
+            
+            # Create HTML version
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; }}
+                    .content {{ background: white; padding: 30px; border-left: 3px solid #667eea; border-right: 3px solid #667eea; }}
+                    .footer {{ background: #f7fafc; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border-top: 1px solid #e2e8f0; }}
+                    pre {{ white-space: pre-wrap; background: #f7fafc; padding: 15px; border-radius: 5px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h2 style="margin:0;">TraceBack Notification</h2>
+                    </div>
+                    <div class="content">
+                        <pre>{body}</pre>
+                    </div>
+                    <div class="footer">
+                        <p style="margin:0; color: #718096;">This is an automated email from TrackeBack</p>
+                        <p style="margin:5px 0 0 0; color: #718096;">Kent State University</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            html_part = MIMEText(html_body, 'html')
+            msg.attach(html_part)
+            
+            # Send email
+            server = smtplib.SMTP(self.smtp_config['smtp_server'], self.smtp_config['smtp_port'], timeout=10)
+            server.starttls()
+            server.login(self.smtp_config['email'], self.smtp_config['password'])
+            server.sendmail(self.smtp_config['email'], to_email, msg.as_string())
+            server.quit()
+            
+            print(f"✅ Email sent successfully to {to_email}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error sending email to {to_email}: {str(e)}")
+            return False
+
+# Convenience function for importing
+def send_email(to_email, subject, body):
+    """Standalone function for sending emails"""
+    service = EmailVerificationService()
+    return service.send_generic_email(to_email, subject, body)
 
 # Flask routes to add to your comprehensive_app.py
 def add_verification_routes(app, verification_service):

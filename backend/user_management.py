@@ -6,8 +6,10 @@ import sqlite3
 import hashlib
 import os
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
-DB_PATH = "trackeback_100k.db"
+# Use absolute path to the backend database to avoid relative-path inconsistencies
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'traceback_100k.db')
 
 def create_users_table():
     """Create users table if it doesn't exist"""
@@ -38,12 +40,47 @@ def create_users_table():
     print("✅ Users table created successfully!")
 
 def hash_password(password):
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using Werkzeug (PBKDF2) for new users"""
+    return generate_password_hash(password)
 
-def verify_password(password, password_hash):
-    """Verify password against hash"""
-    return hashlib.sha256(password.encode()).hexdigest() == password_hash
+
+def verify_password(password, password_hash, email=None):
+    """Verify password against stored hash.
+
+    Supports both modern Werkzeug hashes and legacy SHA-256 hex digests.
+    If the stored hash is a Werkzeug-style hash (starts with the scheme like
+    'pbkdf2:'), `check_password_hash` is used. Otherwise it falls back to
+    comparing a SHA-256 hex digest for backward compatibility.
+    """
+    if not password_hash:
+        return False
+
+    try:
+        # Common Werkzeug-PBKDF2 hashes start with 'pbkdf2:' or contain a '$'
+        if isinstance(password_hash, str) and (password_hash.startswith('pbkdf2:') or '$' in password_hash):
+            return check_password_hash(password_hash, password)
+    except Exception:
+        # If check_password_hash fails for any unexpected reason, fall back
+        pass
+
+    # Fallback: legacy SHA-256 hex digest comparison
+    try:
+        legacy_match = hashlib.sha256(password.encode()).hexdigest() == password_hash
+        if legacy_match and email:
+            # Migrate to a stronger Werkzeug hash on first successful legacy login
+            try:
+                new_hash = generate_password_hash(password)
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('UPDATE users SET password_hash = ? WHERE email = ?', (new_hash, email))
+                conn.commit()
+                conn.close()
+            except Exception:
+                # If migration fails, ignore and continue allowing login
+                pass
+        return legacy_match
+    except Exception:
+        return False
 
 def create_user(email, password, first_name, last_name):
     """Create a new user in the database"""

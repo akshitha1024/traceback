@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('trackeback_100k.db')
+conn = sqlite3.connect('traceback_100k.db')
 cursor = conn.cursor()
 
 # Create ownership_claims table to track verified claims

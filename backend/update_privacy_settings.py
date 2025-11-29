@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 def check_privacy_status():
-    conn = sqlite3.connect('trackeback_100k.db')
+    conn = sqlite3.connect('traceback_100k.db')
     c = conn.cursor()
     
     # Check current privacy status
@@ -35,7 +35,7 @@ def check_privacy_status():
     return public_count, private_count
 
 def make_all_found_items_private():
-    conn = sqlite3.connect('trackeback_100k.db')
+    conn = sqlite3.connect('traceback_100k.db')
     c = conn.cursor()
     
     # Set privacy expiry date to 30 days from now

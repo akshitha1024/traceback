@@ -7,7 +7,7 @@ import sqlite3
 import hashlib
 
 # Database path
-DB_PATH = "trackeback_100k.db"
+DB_PATH = "traceback_100k.db"
 
 def main():
     print("🔧 Fixing password for achapala@kent.edu...")

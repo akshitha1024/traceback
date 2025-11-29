@@ -163,7 +163,7 @@ def check_database_for_codes():
     try:
         import sqlite3
         
-        conn = sqlite3.connect('trackeback_100k.db')
+        conn = sqlite3.connect('traceback_100k.db')
         cursor = conn.cursor()
         
         # Get recent verification codes

@@ -108,7 +108,7 @@ def check_database_table():
         import sqlite3
         
         # Connect to database
-        db_path = "trackeback_100k.db"
+        db_path = "traceback_100k.db"
         if not os.path.exists(db_path):
             print(f"❌ Database file not found: {db_path}")
             return False
@@ -231,7 +231,7 @@ def main():
             print("   • Copy email_config_template.py to email_config.py")
             print("   • Set your Gmail App Password in email_config.py")
         if not results[1][1]:  # Database failed
-            print("   • Make sure you're in the correct directory with trackeback_100k.db")
+            print("   • Make sure you're in the correct directory with traceback_100k.db")
         if not results[2][1]:  # Email service failed
             print("   • Check Gmail App Password is correct")
             print("   • Verify 2-Factor Authentication is enabled on Gmail")

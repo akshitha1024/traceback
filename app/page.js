@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
+import Footer from "@/components/Footer";
 
 export default function Landing() {
   return (
@@ -50,21 +51,26 @@ export default function Landing() {
           </div>
 
           {/* Features Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 mb-16 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 mb-16 max-w-5xl mx-auto">
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
               <div className="text-5xl mb-5">⚡</div>
-              <h3 className="font-bold text-xl mb-3 text-gray-800">Instant Matching</h3>
-              <p className="text-gray-600 text-base leading-relaxed">Smart algorithms connect lost and found items automatically</p>
-            </div>
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
-              <div className="text-5xl mb-5">🏫</div>
-              <h3 className="font-bold text-xl mb-3 text-gray-800">Campus Wide</h3>
-              <p className="text-gray-600 text-base leading-relaxed">Covers all campus buildings, dorms, and common areas</p>
+              <h3 className="font-bold text-xl mb-3 text-gray-800">Smart Matching</h3>
+              <p className="text-gray-600 text-base leading-relaxed">AI compares images, descriptions, color, location, and date to automatically connect lost and found reports — no manual searching required.</p>
             </div>
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
               <div className="text-5xl mb-5">🔒</div>
-              <h3 className="font-bold text-xl mb-3 text-gray-800">Secure & Private</h3>
-              <p className="text-gray-600 text-base leading-relaxed">Your information stays safe with verified student accounts</p>
+              <h3 className="font-bold text-xl mb-3 text-gray-800">72-Hour Smart Privacy</h3>
+              <p className="text-gray-600 text-base leading-relaxed">Lost reports stay completely private. Found items remain hidden for the first 72 hours to reduce false claims. During this period, only users whose lost reports closely match the found item can view it and submit a claim by answering verification questions.</p>
+            </div>
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+              <div className="text-5xl mb-5">🏫</div>
+              <h3 className="font-bold text-xl mb-3 text-gray-800">Made for Your Campus</h3>
+              <p className="text-gray-600 text-base leading-relaxed">Fully optimized for your university — covering all buildings, dorms, classrooms, libraries, and common areas. Only verified students, staff, and faculty can participate.</p>
+            </div>
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+              <div className="text-5xl mb-5">🎯</div>
+              <h3 className="font-bold text-xl mb-3 text-gray-800">Rightful Owner Verification</h3>
+              <p className="text-gray-600 text-base leading-relaxed">Smart security questions ensure every item is returned to the correct owner, not guessers or impersonators.</p>
             </div>
           </div>
 
@@ -75,20 +81,7 @@ export default function Landing() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
-            <Link href="#" className="hover:text-gray-300 transition-colors">About</Link>
-            <Link href="#" className="hover:text-gray-300 transition-colors">Contact</Link>
-            <Link href="#" className="hover:text-gray-300 transition-colors">Privacy Policy</Link>
-            <Link href="#" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
-          </div>
-          <div className="mt-4 text-gray-400 text-xs">
-            © 2025 Traceback. Made for campus communities.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

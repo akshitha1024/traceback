@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
 export default function MessagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentUser, setCurrentUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -23,7 +25,45 @@ export default function MessagesPage() {
     }
     setCurrentUser(user);
     loadConversations(user.id);
-  }, [router]);
+    
+    // Check if we need to start a new conversation from query params
+    const conversationId = searchParams.get('conversation');
+    const itemId = searchParams.get('item_id');
+    const itemTitle = searchParams.get('item_title');
+    const otherEmail = searchParams.get('other_email');
+    const otherName = searchParams.get('other_name');
+    
+    if (conversationId && itemId && otherEmail) {
+      // Fetch other user ID from email
+      fetchUserIdAndStartConversation(user, conversationId, itemId, itemTitle, otherEmail, otherName);
+    }
+  }, [router, searchParams]);
+  
+  const fetchUserIdAndStartConversation = async (user, conversationId, itemId, itemTitle, otherEmail, otherName) => {
+    try {
+      // Fetch user ID by email
+      const response = await fetch(`http://localhost:5000/api/user-by-email?email=${encodeURIComponent(otherEmail)}`);
+      const data = await response.json();
+      
+      if (data.user) {
+        const newConv = {
+          conversation_id: conversationId,
+          item_id: itemId,
+          item_type: 'FOUND',
+          item_title: itemTitle || 'Item',
+          other_user_id: data.user.id,
+          other_user_name: otherName || data.user.full_name,
+          other_user_email: otherEmail,
+          last_message: '',
+          last_message_time: new Date().toISOString(),
+          unread_count: 0
+        };
+        setSelectedConversation(newConv);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
 
   useEffect(() => {
     if (selectedConversation) {
@@ -115,19 +155,14 @@ export default function MessagesPage() {
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now - date;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days === 0) {
-      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    } else if (days === 1) {
-      return 'Yesterday';
-    } else if (days < 7) {
-      return date.toLocaleDateString('en-US', { weekday: 'short' });
-    } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false
+    });
   };
 
   if (!currentUser) {
@@ -186,10 +221,6 @@ export default function MessagesPage() {
                   {/* Chat Header */}
                   <div className="p-4 border-b border-gray-700 bg-gray-800">
                     <h2 className="text-lg font-semibold text-white">{selectedConversation.other_user_name}</h2>
-                    <p className="text-sm text-gray-400">{selectedConversation.other_user_email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      About: <span className="text-blue-400">{selectedConversation.item_title}</span>
-                    </p>
                   </div>
 
                   {/* Messages */}
@@ -245,6 +276,23 @@ export default function MessagesPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
