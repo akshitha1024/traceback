@@ -8,7 +8,7 @@ import random
 from datetime import datetime, timedelta
 import os
 
-DB_PATH = "trackeback_100k.db"
+DB_PATH = "traceback_100k.db"
 
 def update_database_dates():
     """Update database with multiple dates from August 1st, 2025"""

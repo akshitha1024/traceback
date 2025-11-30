@@ -15,152 +15,50 @@ export default function ReportPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category_id: '',
-    location_id: '',
+    category: '',
+    location_id: '1',
     color: '',
-    size: '',
     date_lost: '',
-    date_found: '',
-    time_lost: '',
-    time_found: '',
-    user_name: '',
-    user_email: '',
-    user_phone: '',
-    additional_details: '',
-    custom_category: '',
-    custom_location: ''
+    date_found: ''
   });
-  const [showCustomCategory, setShowCustomCategory] = useState(false);
-  const [showCustomLocation, setShowCustomLocation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-
-  // Fetch categories and locations from API
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   useEffect(() => {
-    const fetchData = async () => {
-      console.log('🔍 Fetching categories and locations...');
-      
-      // Fallback data in case API is not accessible
-      const fallbackCategories = [
-        { id: 1, name: 'Electronics' },
-        { id: 2, name: 'Clothing & Accessories' },
-        { id: 3, name: 'Bags & Backpacks' },
-        { id: 4, name: 'Books & Supplies' },
-        { id: 5, name: 'Keys & Cards' },
-        { id: 6, name: 'Wallets & Money' },
-        { id: 7, name: 'Jewelry & Watches' },
-        { id: 8, name: 'Sports & Recreation' },
-        { id: 9, name: 'Personal Items' },
-        { id: 10, name: 'Documents & Papers' }
-      ];
-      
-      const fallbackLocations = [
-        { id: 1, name: 'University Library' },
-        { id: 2, name: 'Kent Student Center' },
-        { id: 3, name: 'Math & Computer Science Building' },
-        { id: 4, name: 'Business Building' },
-        { id: 5, name: 'Art Building' },
-        { id: 6, name: 'Recreation Center' },
-        { id: 7, name: 'Dining Commons' },
-        { id: 8, name: 'Engineering Building' },
-        { id: 9, name: 'Psychology Building' },
-        { id: 10, name: 'Music & Speech Building' },
-        { id: 11, name: 'Parking Deck A' },
-        { id: 12, name: 'Parking Lot B' },
-        { id: 13, name: 'Campus Green' },
-        { id: 14, name: 'University Bookstore' },
-        { id: 15, name: 'Student Health Services' },
-        { id: 16, name: 'Residence Hall - Eastway' },
-        { id: 17, name: 'Residence Hall - Westway' },
-        { id: 18, name: 'Science Research Building' },
-        { id: 19, name: 'Performing Arts Center' },
-        { id: 20, name: 'Academic Success Center' },
-        { id: 21, name: 'Nursing Building' },
-        { id: 22, name: 'Education Building' },
-        { id: 23, name: 'Journalism & Mass Communication' },
-        { id: 24, name: 'Architecture Building' },
-        { id: 25, name: 'Cafeteria - Eastway' },
-        { id: 26, name: 'Cafeteria - Hub' },
-        { id: 27, name: 'Tennis Courts' },
-        { id: 28, name: 'Soccer Fields' },
-        { id: 29, name: 'Track & Field' },
-        { id: 30, name: 'Baseball Diamond' }
-      ];
-      
-      try {
-        console.log('📡 Making API calls to Flask server...');
-        
-        // Try multiple endpoints to improve connectivity
-        const baseURLs = ['http://localhost:5000', 'http://127.0.0.1:5000'];
-        let categoriesData = null;
-        let locationsData = null;
-        
-        for (const baseURL of baseURLs) {
-          if (!categoriesData || !locationsData) {
-            try {
-              console.log(`🔄 Trying ${baseURL}...`);
-              
-              if (!categoriesData) {
-                const categoriesRes = await fetch(`${baseURL}/api/categories`, {
-                  method: 'GET',
-                  headers: { 'Content-Type': 'application/json' },
-                  signal: AbortSignal.timeout(5000) // 5 second timeout
-                });
-                
-                if (categoriesRes.ok) {
-                  categoriesData = await categoriesRes.json();
-                  console.log('✅ Categories loaded from API:', categoriesData.length, 'items');
-                }
-              }
-              
-              if (!locationsData) {
-                const locationsRes = await fetch(`${baseURL}/api/locations`, {
-                  method: 'GET',
-                  headers: { 'Content-Type': 'application/json' },
-                  signal: AbortSignal.timeout(5000) // 5 second timeout
-                });
-                
-                if (locationsRes.ok) {
-                  locationsData = await locationsRes.json();
-                  console.log('✅ Locations loaded from API:', locationsData.length, 'items');
-                }
-              }
-              
-              if (categoriesData && locationsData) break;
-              
-            } catch (urlError) {
-              console.log(`❌ ${baseURL} failed:`, urlError.message);
-            }
+    const curatedCategories = [
+      'Electronics','Jewelry','Clothing','Bags','Keys','Books','Documents','Accessories','Toys','Kitchen'
+    ].map((name, idx) => ({ id: `cur_${idx + 1}`, name }));
+
+    setCategories(curatedCategories);
+
+    // Restore previous location loading behavior: try backend, fallback to a simple list
+    const curatedLocationsFallback = [ { id: 1, name: 'University Library' } ];
+
+    const baseURLs = ['http://localhost:5000', 'http://127.0.0.1:5000'];
+    let fetched = false;
+
+    (async () => {
+      for (const baseURL of baseURLs) {
+        try {
+          const res = await fetch(`${baseURL}/api/locations`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setLocations(data);
+            fetched = true;
+            break;
           }
+        } catch (err) {
+          // try next
         }
-        
-        if (categoriesData) {
-          setCategories(categoriesData);
-        } else {
-          console.log('📋 Using fallback categories');
-          setCategories(fallbackCategories);
-          setLoadingError('Categories API failed - using fallback data');
-        }
-        
-        if (locationsData) {
-          setLocations(locationsData);
-        } else {
-          console.log('📍 Using fallback locations');
-          setLocations(fallbackLocations);
-          setLoadingError(prev => prev ? prev + ' | Locations API failed' : 'Locations API failed - using fallback data');
-        }
-        
-      } catch (error) {
-        console.error('🚨 Network error, using fallback data:', error);
-        setCategories(fallbackCategories);
-        setLocations(fallbackLocations);
-        setLoadingError(`Network error: ${error.message} - using fallback data`);
       }
-    };
-    
-    fetchData();
+
+      if (!fetched) {
+        setLocations(curatedLocationsFallback);
+      }
+    })();
   }, []);
 
   const handleInputChange = (e) => {
@@ -170,21 +68,7 @@ export default function ReportPage() {
       [name]: value
     }));
 
-    // Handle "Other" category selection
-    if (name === 'category_id') {
-      setShowCustomCategory(value === 'other');
-      if (value !== 'other') {
-        setFormData(prev => ({ ...prev, custom_category: '' }));
-      }
-    }
-
-    // Handle "Other" location selection
-    if (name === 'location_id') {
-      setShowCustomLocation(value === 'other');
-      if (value !== 'other') {
-        setFormData(prev => ({ ...prev, custom_location: '' }));
-      }
-    }
+    // Location field - no custom location option anymore
   };
 
   const handleImageChange = (e) => {
@@ -203,14 +87,10 @@ export default function ReportPage() {
       }
 
       setSelectedImage(file);
-      
       // Create preview
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target.result);
-      };
+      reader.onload = (ev) => setImagePreview(ev.target.result);
       reader.readAsDataURL(file);
-      
       console.log('✅ Image selected:', file.name, 'Size:', Math.round(file.size / 1024), 'KB');
     }
   };
@@ -235,28 +115,50 @@ export default function ReportPage() {
 
       // Prepare form data for submission (including image if present)
       const submitData = new FormData();
-      
-      // Add all text fields
-      Object.keys(formData).forEach(key => {
-        if (formData[key]) {
-          submitData.append(key, formData[key]);
-        }
-      });
 
-      // Add date and time fields based on tab
-      if (formData[tab === 'lost' ? 'date_lost' : 'date_found']) {
-        submitData.append(
-          tab === 'lost' ? 'date_lost' : 'date_found', 
-          formData[tab === 'lost' ? 'date_lost' : 'date_found']
-        );
+      // Validate date (native date picker -> YYYY-MM-DD)
+      const dateFieldName = tab === 'lost' ? 'date_lost' : 'date_found';
+      const dateValue = formData[dateFieldName] || '';
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(dateValue)) {
+        setMessage('❌ Please select a valid date');
+        setLoading(false);
+        return;
       }
+
+      // Title & description
+      submitData.append('title', formData.title || '');
+      submitData.append('description', formData.description || '');
+
+      // Category: send as label in custom_category for backend compatibility
+      submitData.append('category_id', 'other');
+      submitData.append('custom_category', formData.category || 'Misc');
+
+      // Provide a default location_id to satisfy backend requirement
+      submitData.append('location_id', formData.location_id || '1');
+      // Date and time (automatically capture current ET time)
+      submitData.append(dateFieldName, dateValue);
       
-      if (formData[tab === 'lost' ? 'time_lost' : 'time_found']) {
-        submitData.append(
-          tab === 'lost' ? 'time_lost' : 'time_found', 
-          formData[tab === 'lost' ? 'time_lost' : 'time_found']
-        );
-      }
+      // Add current time in ET timezone
+      const timeFieldName = tab === 'lost' ? 'time_lost' : 'time_found';
+      const now = new Date();
+      // Convert to ET (America/New_York)
+      const etTime = now.toLocaleTimeString('en-US', { 
+        timeZone: 'America/New_York',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      submitData.append(timeFieldName, etTime);
+
+      // Color (required) - contact details are associated with user profile
+      submitData.append('color', formData.color || '');
+
+      // Add user information from localStorage
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      submitData.append('user_name', user.full_name || user.name || 'Anonymous');
+      submitData.append('user_email', user.email || '');
+      submitData.append('user_phone', user.phone || '');
 
       // Add image if selected
       if (selectedImage) {
@@ -296,18 +198,10 @@ export default function ReportPage() {
             router.push(`/found-item-questions/${result.item_id}`);
           }, 1500);
         } else {
-          // For lost items, just reset the form
+          // For lost items, redirect to dashboard
           setTimeout(() => {
-            // Reset form
-            setFormData({
-              title: '', description: '', category_id: '', location_id: '', color: '', size: '',
-              date_lost: '', date_found: '', time_lost: '', time_found: '', user_name: '', user_email: '', 
-              user_phone: '', additional_details: '', custom_category: '', custom_location: ''
-            });
-            setShowCustomCategory(false);
-            setShowCustomLocation(false);
-            removeImage(); // Clear image
-          }, 2000);
+            router.push('/dashboard');
+          }, 1500);
         }
       } else {
         setMessage(`❌ Error: ${result?.error || 'Failed to submit to server'}`);
@@ -373,27 +267,26 @@ export default function ReportPage() {
             </label>
 
             <label className="block text-sm">
-              Category*
-              <select 
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleInputChange}
-                className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm max-h-40 overflow-y-auto"
-                required
-                size="1"
-              >
-                <option value="">Select a category</option>
-                {categories.length > 0 ? (
-                  categories.map(category => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))
-                ) : (
-                  <option disabled>Loading categories...</option>
-                )}
-                <option value="other">Other (specify below)</option>
-              </select>
+              Category* <button type="button" onClick={()=>setShowCategoryModal(true)} className="text-xs underline ml-2">Learn more</button>
+                <select 
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2 text-sm max-h-40 overflow-y-auto"
+                  required
+                  size="1"
+                >
+                  <option value="">Select a category</option>
+                  {categories.length > 0 ? (
+                    categories.map(category => (
+                      <option key={category.id} value={category.name}>
+                        {category.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>Loading categories...</option>
+                  )}
+                </select>
               {categories.length === 0 && (
                 <small className="text-red-500">
                   Debug: Categories not loaded. Check console for errors.
@@ -401,19 +294,7 @@ export default function ReportPage() {
               )}
             </label>
 
-            {showCustomCategory && (
-              <label className="block text-sm">
-                Custom Category*
-                <input
-                  name="custom_category"
-                  value={formData.custom_category}
-                  onChange={handleInputChange}
-                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                  placeholder="Enter custom category"
-                  required
-                />
-              </label>
-            )}
+            {/* No custom category input: all categories provided */}
 
             <label className="block text-sm">
               Description*
@@ -423,33 +304,64 @@ export default function ReportPage() {
                 onChange={handleInputChange}
                 rows={4}
                 className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                placeholder="Provide details of the item (color, notes, etc.)"
+                placeholder="E.g., brand name, unique features, condition, scratches, text/logo on item..."
                 required
               />
+              <p className="mt-1 text-xs text-gray-600">
+                💡 <strong>Hint:</strong> Please provide a brief description with identifying details (brand, model, unique features, condition, etc.). 
+                <span className="text-gray-500"> Do not repeat color, location, date, or time - these are captured in separate fields.</span>
+              </p>
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm">
-                Color
-                <input
-                  name="color"
-                  value={formData.color}
-                  onChange={handleInputChange}
-                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                  placeholder="Item color"
-                />
+            <div className="grid grid-cols-1 gap-3">
+              <label className="block text-sm mb-2">
+                Color* (Select one)
               </label>
-
-              <label className="block text-sm">
-                Size
-                <input
-                  name="size"
-                  value={formData.size}
-                  onChange={handleInputChange}
-                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                  placeholder="Item size"
-                />
-              </label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                {[
+                  { name: 'Black', color: '#000000' },
+                  { name: 'Blue', color: '#0066FF' },
+                  { name: 'Red', color: '#FF0000' },
+                  { name: 'Brown', color: '#8B4513' },
+                  { name: 'Silver', color: '#C0C0C0' },
+                  { name: 'White', color: '#FFFFFF' },
+                  { name: 'Grey', color: '#808080' },
+                  { name: 'Gold', color: '#FFD700' },
+                  { name: 'Pink', color: '#FF69B4' },
+                  { name: 'Green', color: '#00FF00' },
+                  { name: 'Orange', color: '#FF8800' },
+                  { name: 'Yellow', color: '#FFFF00' },
+                  { name: 'Purple', color: '#800080' },
+                  { name: 'Multicolor', color: 'linear-gradient(135deg, red, orange, yellow, green, blue, purple)' }
+                ].map((colorOption) => (
+                  <label
+                    key={colorOption.name}
+                    className={`cursor-pointer rounded-lg border-2 p-3 text-center transition-all hover:shadow-lg ${
+                      formData.color === colorOption.name
+                        ? 'border-blue-600 ring-2 ring-blue-300 shadow-md'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="color"
+                      value={colorOption.name}
+                      checked={formData.color === colorOption.name}
+                      onChange={handleInputChange}
+                      className="sr-only"
+                      required
+                    />
+                    <div
+                      className="w-full h-12 rounded-md mb-2 border border-gray-300"
+                      style={{
+                        background: colorOption.color,
+                        boxShadow: colorOption.name === 'White' ? 'inset 0 0 0 1px #ccc' : 'none'
+                      }}
+                    />
+                    <div className="text-xs font-medium text-gray-700">{colorOption.name}</div>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div>
@@ -535,7 +447,6 @@ export default function ReportPage() {
                 ) : (
                   <option disabled>Loading locations...</option>
                 )}
-                <option value="other">Other (specify below)</option>
               </select>
               {locations.length === 0 && (
                 <small className="text-red-500">
@@ -544,93 +455,19 @@ export default function ReportPage() {
               )}
             </label>
 
-            {showCustomLocation && (
-              <label className="block text-sm">
-                Custom Location*
-                <input
-                  name="custom_location"
-                  value={formData.custom_location}
-                  onChange={handleInputChange}
-                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                  placeholder="Enter custom location"
-                  required
-                />
-              </label>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm">
-                Date*
-                <input 
-                  type="date" 
-                  name={tab === "lost" ? "date_lost" : "date_found"}
-                  value={formData[tab === "lost" ? "date_lost" : "date_found"]}
-                  onChange={handleInputChange}
-                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2" 
-                  required
-                />
-              </label>
-
-              <label className="block text-sm">
-                Time (optional)
-                <input 
-                  type="time"
-                  name={tab === "lost" ? "time_lost" : "time_found"}
-                  value={formData[tab === "lost" ? "time_lost" : "time_found"]}
-                  onChange={handleInputChange}
-                  className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                />
-              </label>
-            </div>
-
             <label className="block text-sm">
-              Your Name*
+              Date*
               <input 
-                name="user_name"
-                value={formData.user_name}
+                type="date" 
+                name={tab === "lost" ? "date_lost" : "date_found"}
+                value={formData[tab === "lost" ? "date_lost" : "date_found"]}
                 onChange={handleInputChange}
                 className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2" 
-                placeholder="Your full name"
                 required
               />
             </label>
 
-            <label className="block text-sm">
-              Contact Email*
-              <input 
-                type="email"
-                name="user_email"
-                value={formData.user_email}
-                onChange={handleInputChange}
-                className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2" 
-                placeholder="Your email address"
-                required
-              />
-            </label>
-
-            <label className="block text-sm">
-              Phone Number (optional)
-              <input 
-                type="tel"
-                name="user_phone"
-                value={formData.user_phone}
-                onChange={handleInputChange}
-                className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2" 
-                placeholder="Your phone number"
-              />
-            </label>
-
-            <label className="block text-sm">
-              Additional Details (optional)
-              <textarea
-                name="additional_details"
-                value={formData.additional_details}
-                onChange={handleInputChange}
-                rows={3}
-                className="mt-1 w-full rounded-md border border-border bg-panel px-3 py-2"
-                placeholder="Any additional information that might help..."
-              />
-            </label>
+            {/* Contact fields removed — contact info is taken from the reporter's profile */}
 
             <button 
               type="submit"
@@ -640,6 +477,47 @@ export default function ReportPage() {
               {loading ? 'Submitting...' : `Post ${tab === 'lost' ? 'Lost' : 'Found'} Item`}
             </button>
           </form>
+          {/* Category "Learn more" modal */}
+          {showCategoryModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black opacity-40" onClick={()=>setShowCategoryModal(false)} />
+              <div className="relative z-10 w-full max-w-2xl bg-white rounded-md shadow-lg p-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Categories — Examples</h3>
+                  <button className="text-sm text-gray-600" onClick={()=>setShowCategoryModal(false)}>Close</button>
+                </div>
+                <div className="mt-4 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500">
+                        <th className="pb-2">Category</th>
+                        <th className="pb-2">Examples</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Electronics','Phone, Charger, Laptop, Headphones etc...'],
+                        ['Jewelry','Ring, Necklace, Bracelet, Watch etc...'],
+                        ['Clothing','Jacket, Hoodie, Sweater etc...'],
+                        ['Bags','Backpack, Tote, Purse etc...'],
+                        ['Keys','Keyring, Car Key, Dorm Key etc...'],
+                        ['Books','Textbook, Notebook, Planner etc...'],
+                        ['Documents','ID, Passport, Certificates etc...'],
+                        ['Accessories','Sunglasses, Hat, Belt etc...'],
+                        ['Toys','Plush, Puzzle, Game etc...'],
+                        ['Kitchen','Utensils, Water Bottle, Mug etc...']
+                      ].map(([cat, examples]) => (
+                        <tr key={cat} className="border-t">
+                          <td className="py-2 font-medium">{cat}</td>
+                          <td className="py-2 text-gray-700">{examples}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </Protected>

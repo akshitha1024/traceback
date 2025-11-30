@@ -237,39 +237,72 @@ export default function SecurityVerification({ foundItem, onSuccess, onCancel })
         <div className="mb-6">
           <h4 className="font-medium text-gray-900 mb-3">{currentQuestion?.question || 'Loading question...'}</h4>
           
-          {currentQuestion?.type === 'yesno' ? (
+          {currentQuestion?.question_type === 'multiple_choice' ? (
             <div className="space-y-2">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name={`question-${currentQuestionIndex}`}
-                  value="yes"
-                  checked={answers[currentQuestionIndex] === 'yes'}
-                  onChange={(e) => handleAnswerChange(e.target.value)}
-                  className="mr-2"
-                />
-                Yes
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name={`question-${currentQuestionIndex}`}
-                  value="no"
-                  checked={answers[currentQuestionIndex] === 'no'}
-                  onChange={(e) => handleAnswerChange(e.target.value)}
-                  className="mr-2"
-                />
-                No
-              </label>
+              {currentQuestion.choice_a && (
+                <label className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`question-${currentQuestionIndex}`}
+                    value="A"
+                    checked={answers[currentQuestionIndex] === 'A'}
+                    onChange={(e) => handleAnswerChange(e.target.value)}
+                    className="mr-3"
+                  />
+                  <span>A. {currentQuestion.choice_a}</span>
+                </label>
+              )}
+              {currentQuestion.choice_b && (
+                <label className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`question-${currentQuestionIndex}`}
+                    value="B"
+                    checked={answers[currentQuestionIndex] === 'B'}
+                    onChange={(e) => handleAnswerChange(e.target.value)}
+                    className="mr-3"
+                  />
+                  <span>B. {currentQuestion.choice_b}</span>
+                </label>
+              )}
+              {currentQuestion.choice_c && (
+                <label className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`question-${currentQuestionIndex}`}
+                    value="C"
+                    checked={answers[currentQuestionIndex] === 'C'}
+                    onChange={(e) => handleAnswerChange(e.target.value)}
+                    className="mr-3"
+                  />
+                  <span>C. {currentQuestion.choice_c}</span>
+                </label>
+              )}
+              {currentQuestion.choice_d && (
+                <label className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`question-${currentQuestionIndex}`}
+                    value="D"
+                    checked={answers[currentQuestionIndex] === 'D'}
+                    onChange={(e) => handleAnswerChange(e.target.value)}
+                    className="mr-3"
+                  />
+                  <span>D. {currentQuestion.choice_d}</span>
+                </label>
+              )}
             </div>
           ) : (
-            <input
-              type={currentQuestion?.type === 'number' ? 'number' : 'text'}
-              value={answers[currentQuestionIndex] || ''}
-              onChange={(e) => handleAnswerChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter your answer..."
-            />
+            <div>
+              <input
+                type="text"
+                value={answers[currentQuestionIndex] || ''}
+                onChange={(e) => handleAnswerChange(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Type your answer here..."
+              />
+              <p className="text-xs text-gray-500 mt-1">Answer is case-insensitive</p>
+            </div>
           )}
         </div>
 

@@ -2,10 +2,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function CreateProfile() {
   const nav = useRouter();
+  const [userType, setUserType] = useState("student"); // "student" or "staff"
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,6 +21,48 @@ export default function CreateProfile() {
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [studentIdError, setStudentIdError] = useState("");
+
+  // Prefill only first and last name for profile creation
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+        
+        if (!currentUser || !currentUser.id) {
+          nav.push('/login');
+          return;
+        }
+
+        // Check if profile already completed - redirect to edit page
+        const response = await fetch(`http://localhost:5000/api/profile/${currentUser.id}`);
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.profile && result.profile.profile_completed) {
+            // Profile already exists, redirect to edit
+            nav.push('/profile/edit');
+            return;
+          }
+        }
+
+        // New profile - only prefill first and last name
+        setFormData({
+          firstName: currentUser.first_name || '',
+          lastName: currentUser.last_name || '',
+          studentId: '',
+          department: '',
+          year: '',
+          program: '',
+          bio: '',
+          interests: ''
+        });
+      } catch (e) {
+        console.error('Error loading user data:', e);
+      }
+    };
+
+    loadUserData();
+  }, [nav]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -43,6 +86,13 @@ export default function CreateProfile() {
       } else {
         setStudentIdError("");
       }
+    } else if (name === "program") {
+      // Reset year when program changes since year options are different
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        year: "" // Clear year selection
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -88,10 +138,16 @@ export default function CreateProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate student ID before submission
+    // Validate ID before submission
     if (!formData.studentId || formData.studentId.length !== 9) {
-      setStudentIdError("Student ID must be exactly 9 digits");
-      alert("Please enter a valid 9-digit Student ID");
+      setStudentIdError(`${userType === "student" ? "Student" : "Employee/Staff"} ID must be exactly 9 digits`);
+      alert(`Please enter a valid 9-digit ${userType === "student" ? "Student" : "Employee/Staff"} ID`);
+      return;
+    }
+
+    // Validate year for students
+    if (userType === "student" && !formData.year) {
+      alert("Please select your year of study");
       return;
     }
     
@@ -131,9 +187,12 @@ export default function CreateProfile() {
         last_name: formData.lastName,
         student_id: formData.studentId,
         bio: formData.bio,
-        year_of_study: formData.year,
+        interests: formData.interests,
+        successful_returns_text: formData.successfulReturns,
+        year_of_study: userType === "student" ? formData.year : null,
         major: formData.department,
         building_preference: formData.program,
+        user_type: userType,
         notification_preferences: 'email',
         privacy_settings: 'standard'
       };
@@ -147,14 +206,17 @@ export default function CreateProfile() {
       });
       
       if (!profileResponse.ok) {
-        const errorText = await profileResponse.text();
-        console.error('Profile update failed:', profileResponse.status, errorText);
-        throw new Error(`Server error: ${profileResponse.status} - ${errorText}`);
+        const errorData = await profileResponse.json().catch(() => ({ message: 'Failed to update profile' }));
+        console.error('Profile update failed:', profileResponse.status);
+        throw new Error(errorData.message || 'Failed to update profile');
       }
       
       const profileResult = await profileResponse.json();
       
       if (profileResult.success) {
+        // Determine if this was an edit or create based on whether profile was already completed
+        const wasEditing = currentUser.profile_completed === true || currentUser.profile_completed === 1;
+        
         // Update localStorage with new profile data and ensure profile_completed is true
         const updatedUser = { 
           ...currentUser, 
@@ -180,64 +242,139 @@ export default function CreateProfile() {
           localStorage.setItem("studentProfilePhoto", imageUploadResult.image_url);
         }
         
-        alert('Profile created successfully!');
+        const successMessage = wasEditing ? 'Profile updated successfully!' : 'Profile created successfully!';
+        alert(successMessage);
         nav.push("/dashboard");
       } else {
         throw new Error(profileResult.message || 'Failed to update profile');
       }
       
     } catch (error) {
-      console.error('Profile creation error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        formData: formData,
-        currentUser: JSON.parse(localStorage.getItem('user') || '{}')
-      });
-      alert(`Failed to create profile: ${error.message}\n\nPlease check the browser console for details.`);
+      console.error('Profile operation error:', error);
+      const userMessage = error.message.includes('verify your information') 
+        ? error.message 
+        : 'Failed to create profile. Please try again.';
+      alert(userMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const departments = [
-    "Computer Science",
-    "Information Technology", 
-    "Electronics Engineering",
-    "Mechanical Engineering",
-    "Civil Engineering",
-    "Business Administration",
-    "Mathematics",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "Literature",
-    "Psychology",
+    "Accessories", "Accounting", "Accounting Analytics", "Accounting Fundamentals", "Accounting Technology", "Acting", "Actuarial Mathematics",
+    "Adapted Physical Education", "Addictions Counseling", "Adult Gerontology Acute Care Nurse Practitioner", "Adult Gerontology Clinical Nurse Specialist",
+    "Adult Gerontology Primary Care Nurse Practitioner", "Adult/Adolescent Sexual Assault Nurse Examiner", "Advanced Accounting",
+    "Advanced Semiconductor Manufacturing Technician", "Advertising", "Aeronautical Studies", "Aeronautical Systems Engineering Technology",
+    "Aerospace Engineering", "African Studies", "Africana Studies", "Air Traffic and Airspace Management", "Aircraft Dispatch",
+    "Alcohol, Tobacco and Other Drug Prevention", "American Sign Language", "American Sign Language/English Interpreting",
+    "Ancient, Medieval and Renaissance Studies", "Animation Game Design", "Anthropology", "Applied Data and Information", "Applied Geology",
+    "Applied Mathematics", "Applied Media", "Applied Statistics", "Arabic", "Arabic Translation", "Architectural History", "Architectural Studies",
+    "Architecture", "Architecture and Environmental Design", "Art Education", "Art History", "Artificial Intelligence", "Arts Entrepreneurship",
+    "Athletic Coaching", "Athletic Training", "Audiology", "Autism Spectrum Disorders", "Aviation Law and Policy", "Aviation Maintenance Management",
+    "Aviation Management", "Aviation Management and Logistics", "Aviation Weather", "Behavioral Intervention Specialist", "Biochemistry",
+    "Bioethics and Health Humanities", "Bioinformatics", "Biological Sciences", "Biology", "Biology for Environmental Management and Conservation",
+    "Biomedical Sciences", "Biostatistics", "Biotechnology", "Brewing Technology", "Broadcast Engineering Technology", "Business", "Business Administration",
+    "Business Analytics", "Business German", "Business Management", "Business Management Technology", "Business Russian", "Business Spanish",
+    "CAD for Manufacturing", "Career and Academic Advising", "Career and Community Studies", "Career-Based Intervention", "Career-Technical Teacher Education",
+    "Ceramics", "Chemistry", "Child and Youth Practice", "Chinese", "Classics", "Climate Change", "Clinical Epidemiology", "Clinical Mental Health Counseling",
+    "Clinical Psychology", "Clinical Rehabilitation Counseling", "Clinical Research", "College Teaching", "Communication and Advocacy",
+    "Communication and Information", "Communication Sciences and Disorders", "Communication Studies", "Community College Leadership",
+    "Community Health Education", "Community Health Worker Supervision", "Computed Tomography", "Computer Engineering Technology",
+    "Computer Forensics and Information Security", "Computer Forensics and Security", "Computer Information Systems", "Computer Science",
+    "Computer Technology", "Computer-Aided Drafting/Design Technician", "Computers and Geosciences", "Construction Management", "Counseling",
+    "Counselor Education and Supervision", "Creative Writing", "Criminology and Criminal Justice", "Criminology and Justice Studies",
+    "Cultural Foundations", "Curriculum and Instruction", "Cybercriminology", "Cybersecurity", "Cybersecurity Engineering", "Cybersecurity Foundations",
+    "Dance", "Dance Studies", "Data Analytics", "Data Science", "Deaf Education Multiple Disabilities", "Design", "Digital Media Production",
+    "Disability Studies and Community Inclusion", "Drawing", "Early Childhood Education", "Early Intervention", "Early Years Education and Care",
+    "Earth Science", "Economics", "Education", "Educational Leadership K-12", "Educational Psychology", "Educational Technology",
+    "Electrical/Electronic Engineering Technology", "Electronics", "Emerging Media and Technology", "Engineering Technology", "English", "Enology",
+    "Entrepreneurship", "Environment, Peace and Justice", "Environmental and Conservation Biology", "Environmental Geographic Information Science",
+    "Environmental Geology", "Environmental Health Sciences", "Environmental Studies", "Epidemiology", "Esports",
+    "Essentials for Business Decision Making", "Ethnomusicology", "Event Management", "Event Planning", "Exercise Physiology", "Exercise Science",
+    "Family Nurse Practitioner", "Fashion Design", "Fashion Industry Studies", "Fashion Media", "Fashion Merchandising", "Finance",
+    "Financial Management", "Floriculture", "Forensic Anthropology", "French", "French for the Professions", "French Translation",
+    "Game Design", "Game Programming", "Gender and Sexuality Studies", "General Business", "Geographic Information Science", "Geography",
+    "Geology", "German", "German Studies", "German Translation", "Gerontology", "Gifted Education", "Glass", "Global Issues", "Greek",
+    "Greenhouse Production", "Health Education and Promotion", "Health Informatics", "Health Policy and Management", "Health Services Administration",
+    "Health Systems and Facilities Design", "Health Technologies and Informatics", "Healthcare Compliance", "Healthcare Design",
+    "Healthcare Systems Management", "Help Desk Support", "Higher Education Administration", "Higher Education Administration and Student Affairs",
+    "Historic Preservation", "History", "Horticulture", "Horticulture Technology", "Hospitality and Event Management", "Hospitality and Tourism Management",
+    "Hospitality Management", "Human Development and Family Science", "Human Disease", "Human Resource Management", "Human Services", "Human Sexuality",
+    "Industrial Engineering Technology", "Information Technology", "Innovation", "Institutional Research and Assessment", "Insurance Studies",
+    "Integrated Health Studies", "Integrated Language Arts", "Integrated Mathematics", "Integrated Science", "Integrated Social Studies",
+    "Integrative Studies", "Interior Design", "International Business", "International Family Science", "International Studies",
+    "Internationalization of Higher Education", "Interprofessional Leadership", "Italian", "Italian Studies", "Japanese", "Japanese Translation",
+    "Jazz Studies", "Jewelry, Metals and Enameling", "Jewish Studies", "Journalism", "Journalism Education", "Knowledge Management",
+    "Landscape Architecture", "Latin", "Latin American Studies", "Leadership", "Leadership and Management", "Leading Through Challenge",
+    "Learning Science", "Lesbian, Gay, Bisexual, Transgender and Queer Studies", "LGBTQ+ Public Health", "Liberal Studies",
+    "Library and Information Science", "Life Science", "Life Science/Chemistry", "Long-Term Care Administration", "Magnetic Resonance Imaging",
+    "Mammography", "Management", "Marketing", "Materials Science", "Mathematics", "Mathematics for Secondary School Teachers",
+    "Mechanical Engineering Technology", "Mechatronics Engineering", "Mechatronics Engineering Technology", "Media Advocacy", "Medical Anthropology",
+    "Medical Assisting", "Medical Billing", "Medical Laboratory Science", "Medical Librarianship", "Microbiology", "Middle Childhood Education",
+    "Mild to Moderate Special Education", "Military and Leadership Studies", "Modeling and Animation", "Music", "Music Education",
+    "Music in Audio Recording", "Music Technology", "Music Theory", "Musical Theatre", "Negotiation, Mediation and Conflict Management",
+    "Neuroscience", "Nonprofit Management", "Nonprofit Studies", "Nurse Educator", "Nursing", "Nursing Administration and Health Systems Leadership",
+    "Nursing ADN", "Nursing for Registered Nurses", "Nursing Home Administration", "Nutrition", "Occupational Therapy Assistant",
+    "Office Software Applications", "Office Technology", "Ohio Superintendent's Licensure", "Online and Blended Learning", "Painting",
+    "Paleontology", "Paralegal Studies", "Park Management", "Peace and Conflict Studies", "Peace Officers Training Academy",
+    "Pediatric Primary Care Nurse Practitioner", "Performance", "Philosophy", "Photography", "Photojournalism", "Physical Education and Sport Performance",
+    "Physical Science", "Physical Therapist Assistant Technology", "Physics", "Plant Biology", "Podiatric Medicine", "Political Science",
+    "Pre-Health", "Pre-Law", "Print Media and Photography", "Professional and Technical Writing", "Professional Pilot", "Professional Sales",
+    "Professional Studies", "Psychiatric Mental Health Nurse Practitioner", "Psychological Science", "Psychology", "Public Administration",
+    "Public Health", "Public Relations", "Pure Mathematics", "Qualitative Research", "Quantitative Business Management",
+    "Quantitative Methods in Econometrics", "Race, Gender and Social Justice", "Radiologic Imaging Sciences", "Radiologic Technology",
+    "Reading", "Recreation Management", "Recreation, Park and Tourism Management", "Religion Studies", "Research, Measurement and Statistics",
+    "Respiratory Care", "Respiratory Therapy", "Russian", "Russian Literature, Culture and Translation", "Russian Studies", "Russian Translation",
+    "Safety, Quality and Lean in Manufacturing", "School Counseling", "School Health Education", "School Library Media", "School Psychology",
+    "Sculpture and Expanded Media", "Secondary Education", "Semiconductor Manufacturing Technician", "Social and Behavioral Sciences",
+    "Social Work", "Society, Health and Medicine", "Sociology", "Software Development", "Spanish", "Spanish Translation", "Special Education",
+    "Speech Language Pathology", "Speech Pathology and Audiology", "Sport Administration", "Sport, Exercise and Performance Psychology",
+    "Sports Medicine", "Studio Art", "Sustainability", "Teaching and Learning with Technology", "Teaching English as a Foreign Language",
+    "Teaching English as a Second Language", "Technical and Applied Studies", "Technical Modeling Design", "Technology", "Textiles",
+    "Theatre Design and Technology", "Theatre Design, Technology and Production", "Theatre Performance", "Theatre Studies", "Tourism Management",
+    "Translation", "Translation Studies", "Unmanned Aircraft Systems", "Unmanned Aircraft Systems Flight Operations", "Urban Design",
+    "Urban Studies", "User Experience", "User Experience Design", "Veterinary Technology", "Visual Communication Design", "Viticulture",
+    "Web Design and Development", "Web Programming", "Women's Health Nurse Practitioner", "Women's Studies", "World Literature and Cultures",
+    "World Music", "Zoology", "Other"
+  ];
+
+  const studentPrograms = [
+    "Undergraduate",
+    "Graduate (Master's)",
+    "PhD",
     "Other"
   ];
 
-  const years = [
-    "1st Year",
-    "2nd Year", 
-    "3rd Year",
-    "4th Year",
-    "Graduate",
-    "PhD"
-  ];
+  const getYearOptions = () => {
+    if (formData.program === "Undergraduate") {
+      return ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
+    } else if (formData.program === "Graduate (Master's)") {
+      return ["1st Year", "2nd Year"];
+    } else if (formData.program === "PhD") {
+      return ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year", "6th Year"];
+    } else {
+      return ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
+    }
+  };
 
-  const programs = [
-    "Bachelor's Degree",
-    "Master's Degree",
-    "PhD Program",
-    "Diploma",
-    "Certificate Course"
+  const staffRoles = [
+    "Professor",
+    "Associate Professor",
+    "Assistant Professor",
+    "Lecturer",
+    "Teaching Assistant",
+    "Research Assistant",
+    "Administrative Staff",
+    "Technical Staff",
+    "Support Staff",
+    "Other"
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 lg:px-12">
-        <Link href="/" className="hover:opacity-80 transition-opacity">
+        <Link href="/dashboard" className="hover:opacity-80 transition-opacity">
           <Image 
             src="/logo.png" 
             alt="Traceback Logo" 
@@ -262,7 +399,7 @@ export default function CreateProfile() {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium">Profile Completion Required</h3>
-              <p className="mt-1 text-sm">You must complete your profile before accessing TrackeBack features. This helps ensure trust and safety in our community.</p>
+              <p className="mt-1 text-sm">You must complete your profile before accessing TraceBack features. This helps ensure trust and safety in our campus community.</p>
             </div>
           </div>
         </div>
@@ -274,13 +411,48 @@ export default function CreateProfile() {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Your Profile</h2>
-              <p className="text-gray-600">Let other students know who you are when you report items</p>
+              <p className="text-gray-600">Let others in the campus community know who you are when you report items</p>
               <p className="text-sm text-gray-500 mt-2">
                 📝 <strong>Note:</strong> Your contact details will remain private and secure
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* User Type Selection */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                  I am a *
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setUserType("student")}
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                      userType === "student"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">🎓</div>
+                    <div className="font-semibold">Student</div>
+                    <div className="text-xs text-gray-500 mt-1">Undergraduate, Graduate, or PhD</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserType("staff")}
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                      userType === "staff"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">👨‍🏫</div>
+                    <div className="font-semibold">Professor/Staff</div>
+                    <div className="text-xs text-gray-500 mt-1">Faculty or Administrative Staff</div>
+                  </button>
+                </div>
+              </div>
+
               {/* Profile Photo */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
@@ -377,7 +549,7 @@ export default function CreateProfile() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Student ID <span className="text-red-500">*</span>
+                    {userType === "student" ? "Student ID" : "Employee/Staff ID"} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -385,7 +557,7 @@ export default function CreateProfile() {
                     value={formData.studentId}
                     onChange={handleInputChange}
                     className={`w-full px-4 py-3 border ${studentIdError ? 'border-red-500' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white/70 backdrop-blur-sm transition-all duration-200`}
-                    placeholder="Enter your 9-digit student ID"
+                    placeholder={userType === "student" ? "Enter your 9-digit student ID" : "Enter your employee/staff ID"}
                     pattern="[0-9]{9}"
                     maxLength={9}
                     inputMode="numeric"
@@ -394,14 +566,18 @@ export default function CreateProfile() {
                   {studentIdError && (
                     <p className="mt-1 text-sm text-red-500">{studentIdError}</p>
                   )}
-                  <p className="mt-1 text-xs text-gray-500">Must be exactly 9 digits (numbers only)</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {userType === "student" 
+                      ? "Must be exactly 9 digits (numbers only)" 
+                      : "Your institutional ID (9 digits)"}
+                  </p>
                 </div>
               </div>
 
-              {/* Academic Information */}
+              {/* Academic/Professional Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
-                  Academic Information
+                  {userType === "student" ? "Academic Information" : "Professional Information"}
                 </h3>
                 
                 <div>
@@ -415,35 +591,63 @@ export default function CreateProfile() {
                     required
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white/70 backdrop-blur-sm transition-all duration-200"
                   >
-                    <option value="">Select your department/major</option>
+                    <option value="">Select your department{userType === "student" ? "/major" : ""}</option>
                     {departments.map((dept) => (
                       <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Academic Year *
-                    </label>
-                    <select
-                      name="year"
-                      value={formData.year}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white/70 backdrop-blur-sm transition-all duration-200"
-                    >
-                      <option value="">Select year</option>
-                      {years.map((year) => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
+                {userType === "student" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Program of Study *
+                      </label>
+                      <select
+                        name="program"
+                        value={formData.program}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white/70 backdrop-blur-sm transition-all duration-200"
+                      >
+                        <option value="">Select program</option>
+                        {studentPrograms.map((program) => (
+                          <option key={program} value={program}>{program}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Year of Study *
+                      </label>
+                      <select
+                        name="year"
+                        value={formData.year}
+                        onChange={handleInputChange}
+                        required
+                        disabled={!formData.program}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white/70 backdrop-blur-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">{formData.program ? "Select year" : "Select program first"}</option>
+                        {getYearOptions().map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                      {formData.program && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {formData.program === "Undergraduate" && "4-5 years typical"}
+                          {formData.program === "Graduate (Master's)" && "2 years typical"}
+                          {formData.program === "PhD" && "4-6 years typical"}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  
+                ) : (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Program *
+                      Role/Position *
                     </label>
                     <select
                       name="program"
@@ -452,13 +656,13 @@ export default function CreateProfile() {
                       required
                       className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white/70 backdrop-blur-sm transition-all duration-200"
                     >
-                      <option value="">Select program</option>
-                      {programs.map((program) => (
-                        <option key={program} value={program}>{program}</option>
+                      <option value="">Select your role</option>
+                      {staffRoles.map((role) => (
+                        <option key={role} value={role}>{role}</option>
                       ))}
                     </select>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Optional Information */}
@@ -503,12 +707,25 @@ export default function CreateProfile() {
                     <span className="text-blue-500 text-lg">🔒</span>
                   </div>
                   <div className="ml-3">
-                    <h4 className="text-sm font-medium text-blue-800">Privacy Protection</h4>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Your contact details (email, phone) are kept private and will never be shown to other students. 
-                      Only your name, profile photo (if uploaded), and academic information will be visible when you report lost or found items.
-                      Your profile photo is completely optional and can be removed at any time.
-                    </p>
+                    <h4 className="text-sm font-medium text-blue-800 mb-2">Privacy & Visibility Information</h4>
+                    <div className="space-y-2 text-sm text-blue-700">
+                      <p className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>We <strong>do not</strong> show your contact email to people unnecessarily. It's only shared when required for item returns or claims.</span>
+                      </p>
+                      <p className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>Everything in your profile is visible to other users <strong>except your Student ID and contact email</strong>.</span>
+                      </p>
+                      <p className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>When you choose to connect with someone, they can see your contact email <strong>but not your Student ID</strong>.</span>
+                      </p>
+                      <p className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>Your Student ID is used only for identity verification and is never shared with anyone.</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -525,7 +742,7 @@ export default function CreateProfile() {
                     Creating Profile...
                   </div>
                 ) : (
-                  "Create Profile"
+                  "Update Profile"
                 )}
               </button>
 

@@ -52,9 +52,11 @@ export default function VerifyEmail() {
       const data = await response.json();
       
       if (response.ok) {
-        // Store session token
-        localStorage.setItem("sessionToken", data.session_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+                // Store session token
+                localStorage.setItem("sessionToken", data.session_token);
+                // Clear explicit-logout flag so session restores normally
+                try { localStorage.removeItem('loggedOutByUser'); } catch(e) {}
+                localStorage.setItem("user", JSON.stringify(data.user));
         
         // Clean up
         localStorage.removeItem("pendingVerificationEmail");

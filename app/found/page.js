@@ -23,8 +23,12 @@ export default function FoundPage() {
   const fetchFoundItems = async (page = 1) => {
     try {
       setLoading(true);
-      // Add show_all=true to get both private and public items
-      const response = await fetch(`http://localhost:5000/api/found-items?limit=25&page=${page}&show_all=true`);
+      // Get current user for matching private items
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userEmail = user.email || '';
+      
+      // Fetch found items - will only show items >3 days old OR items with >70% match to user's lost items
+      const response = await fetch(`http://localhost:5000/api/found-items?limit=25&page=${page}&user_email=${encodeURIComponent(userEmail)}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -188,11 +192,12 @@ export default function FoundPage() {
               <div className="flex items-start gap-3">
                 <div className="text-blue-600 text-xl">🔒</div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-blue-900 mb-1">30-Day Privacy Policy</h3>
+                  <h3 className="font-semibold text-blue-900 mb-1">3-Day Privacy Period</h3>
                   <p className="text-sm text-blue-800">
-                    To protect finder privacy and prevent false claims, found items are kept private for the first 30 days. 
-                    Private items show only the item name and location - all other details are hidden until the 30-day period ends 
-                    or you verify ownership. If you lost something recently, report it as a lost item and our matching system will notify you of potential matches.
+                    <strong>New found items are private for the first 3 days</strong> and only visible to users who reported matching lost items (&gt;70% similarity). After 3 days, items become public showing limited details: name, category, location, and date. This gives priority to people who actually lost items while protecting privacy and preventing false claims.
+                  </p>
+                  <p className="text-xs text-blue-700 mt-2 italic">
+                    💡 Tip: If you lost something, report it on your dashboard to get matched with found items during the private period!
                   </p>
                 </div>
               </div>
@@ -205,7 +210,8 @@ export default function FoundPage() {
               (Page {pagination.page} of {pagination.pages})
             </div>
             <div>
-              🔒 Private items show name & location only • 25 per page
+              <b><i>Showing: name, category, location, date • 25 per page</i>
+              </b>
             </div>
           </div>
           
@@ -227,16 +233,15 @@ export default function FoundPage() {
           {foundItems.length === 0 && !loading && (
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-12 text-center">
               <div className="text-6xl mb-4">📦</div>
-              <div className="text-xl font-semibold text-gray-900 mb-2">No Public Found Items Yet</div>
+              <div className="text-xl font-semibold text-gray-900 mb-2">No Found Items Yet</div>
               <p className="text-gray-600 mb-4">
-                Found items become public after 30 days. Check back later or report your lost item 
-                to get matched with recent finds.
+                Be the first to report a found item! Or report your lost item to get matched with finds.
               </p>
               <Link 
-                href="/lost" 
+                href="/report" 
                 className="inline-block bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                Report Lost Item
+                Report Item
               </Link>
             </div>
           )}
@@ -244,6 +249,23 @@ export default function FoundPage() {
           {renderPagination()}
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </Protected>
   );
 }

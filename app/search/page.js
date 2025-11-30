@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import SearchAndFilter from '../../components/SearchAndFilter';
 import ItemCard from '../../components/ItemCard';
-import { lostItems, foundItems } from '../../data/mock';
+import { foundItems } from '../../data/mock';
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -19,12 +20,21 @@ export default function SearchPage() {
     setSearchQuery(query);
   }, [searchParams]);
 
-  // Initialize items data
+  // Initialize items data - only found items, filtered to exclude private ones
   useEffect(() => {
-    const combinedItems = [
-      ...lostItems.map(item => ({ ...item, type: 'lost' })),
-      ...foundItems.map(item => ({ ...item, type: 'found' }))
-    ];
+    const combinedItems = foundItems
+      .map(item => ({ ...item, type: 'found' }))
+      .filter(item => {
+        // Exclude items that are private (within 3-day period)
+        if (item.is_currently_private === true) {
+          return false; // Hide private items completely
+        }
+        // Also exclude based on isPrivate flag
+        if (item.isPrivate === true) {
+          return false;
+        }
+        return true;
+      });
     setAllItems(combinedItems);
     setFilteredItems(combinedItems);
     setLoading(false);
@@ -93,11 +103,14 @@ export default function SearchPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Search Lost & Found Items
+            Found Items
           </h1>
-          <p className="text-gray-600">
-            Find lost items or check if someone has found yours
+          <p className="text-gray-600 mb-4">
+            Check if someone has found your item
           </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+            <strong>Privacy Notice:</strong> All found items remain private for the first 72 hours to reduce the number of false-claim attempts, while lost-item reports are never shown publicly to protect user privacy and prevent others from using that information to answer security questions and falsely claim ownership. During this private window, our ML system notifies only users whose lost reports closely match the found item. After 3 days, the found item becomes visible to the public with only limited details—item name, found location, category, and date/time—to keep the verification process fair, secure, and trustworthy.
+          </div>
         </div>
 
         {/* Search and Filter Component */}
@@ -205,6 +218,23 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

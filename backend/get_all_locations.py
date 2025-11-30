@@ -1,7 +1,7 @@
 import sqlite3
 
 # Connect to database
-conn = sqlite3.connect('trackeback_100k.db')
+conn = sqlite3.connect('traceback_100k.db')
 c = conn.cursor()
 
 # Get all locations

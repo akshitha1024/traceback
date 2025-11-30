@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 def set_privacy_from_posted_date():
-    conn = sqlite3.connect('trackeback_100k.db')
+    conn = sqlite3.connect('traceback_100k.db')
     c = conn.cursor()
     
     print("🔍 Setting privacy period to 1 month from posted date...")

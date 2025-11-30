@@ -183,13 +183,17 @@ class ApiService {
     const imageUrl = item.image_url || null;
     console.log(`   final image_url: ${imageUrl}`);
     
+    const rawDate = item.date_found || item.date_lost || item.created_at;
+    
     return {
       id: item.id,
       type: type,
       title: item.title,
       description: item.description,
       location: item.location_name || item.location,
-      date: item.date_found || item.date_lost || item.created_at,
+      date: this.formatDate(rawDate),
+      date_found: this.formatDate(item.date_found),
+      time_found: item.time_found,
       ago: this.timeAgo(item.created_at),
       category: item.category_name || item.category,
       color: item.color,
@@ -284,11 +288,10 @@ class ApiService {
     if (!dateString) return 'Unknown';
     
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
   }
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Protected from "@/components/Protected";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -341,6 +342,23 @@ export default function ClaimsPage() {
           )}
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </Protected>
   );
 }

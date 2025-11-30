@@ -18,8 +18,8 @@ export default function FoundItemQuestionsPage() {
 
   // State for managing security questions
   const [questions, setQuestions] = useState([
-    { question: "", choice_a: "", choice_b: "", choice_c: "", choice_d: "", correct_choice: "A" },
-    { question: "", choice_a: "", choice_b: "", choice_c: "", choice_d: "", correct_choice: "A" }
+    { question: "", question_type: "multiple_choice", choice_a: "", choice_b: "", choice_c: "", choice_d: "", correct_choice: "A", text_answer: "" },
+    { question: "", question_type: "multiple_choice", choice_a: "", choice_b: "", choice_c: "", choice_d: "", correct_choice: "A", text_answer: "" }
   ]);
 
   const minQuestions = 2;
@@ -57,7 +57,7 @@ export default function FoundItemQuestionsPage() {
     if (questions.length < maxQuestions) {
       setQuestions([
         ...questions,
-        { question: "", choice_a: "", choice_b: "", choice_c: "", choice_d: "", correct_choice: "A" }
+        { question: "", question_type: "multiple_choice", choice_a: "", choice_b: "", choice_c: "", choice_d: "", correct_choice: "A", text_answer: "" }
       ]);
     }
   };
@@ -76,15 +76,23 @@ export default function FoundItemQuestionsPage() {
         setError(`Question ${i + 1}: Please enter a question`);
         return false;
       }
-      if (!q.choice_a.trim() || !q.choice_b.trim()) {
-        setError(`Question ${i + 1}: Please provide at least 2 answer choices (A and B)`);
-        return false;
-      }
-      // Verify at least 2 unique choices
-      const choices = [q.choice_a, q.choice_b, q.choice_c, q.choice_d].filter(c => c && c.trim());
-      if (choices.length < 2) {
-        setError(`Question ${i + 1}: Please provide at least 2 different answer choices`);
-        return false;
+      
+      if (q.question_type === "text") {
+        if (!q.text_answer || !q.text_answer.trim()) {
+          setError(`Question ${i + 1}: Please provide the correct text answer`);
+          return false;
+        }
+      } else {
+        if (!q.choice_a.trim() || !q.choice_b.trim()) {
+          setError(`Question ${i + 1}: Please provide at least 2 answer choices (A and B)`);
+          return false;
+        }
+        // Verify at least 2 unique choices
+        const choices = [q.choice_a, q.choice_b, q.choice_c, q.choice_d].filter(c => c && c.trim());
+        if (choices.length < 2) {
+          setError(`Question ${i + 1}: Please provide at least 2 different answer choices`);
+          return false;
+        }
       }
     }
     return true;
@@ -111,12 +119,13 @@ export default function FoundItemQuestionsPage() {
           found_item_id: foundItemId,
           questions: questions.map(q => ({
             question: q.question,
-            choice_a: q.choice_a || null,
-            choice_b: q.choice_b || null,
-            choice_c: q.choice_c || null,
-            choice_d: q.choice_d || null,
-            correct_choice: q.correct_choice,
-            question_type: "multiple_choice"
+            question_type: q.question_type,
+            choice_a: q.question_type === "multiple_choice" ? (q.choice_a || null) : null,
+            choice_b: q.question_type === "multiple_choice" ? (q.choice_b || null) : null,
+            choice_c: q.question_type === "multiple_choice" ? (q.choice_c || null) : null,
+            choice_d: q.question_type === "multiple_choice" ? (q.choice_d || null) : null,
+            correct_choice: q.question_type === "multiple_choice" ? q.correct_choice : null,
+            text_answer: q.question_type === "text" ? q.text_answer : null
           }))
         }),
       });
@@ -228,6 +237,37 @@ export default function FoundItemQuestionsPage() {
                   )}
                 </div>
 
+                {/* Question Type Selector */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Question Type*
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name={`question_type_${index}`}
+                        value="multiple_choice"
+                        checked={q.question_type === "multiple_choice"}
+                        onChange={(e) => handleQuestionChange(index, "question_type", e.target.value)}
+                        className="w-4 h-4 text-gray-600"
+                      />
+                      <span className="text-sm text-gray-700">Multiple Choice</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name={`question_type_${index}`}
+                        value="text"
+                        checked={q.question_type === "text"}
+                        onChange={(e) => handleQuestionChange(index, "question_type", e.target.value)}
+                        className="w-4 h-4 text-gray-600"
+                      />
+                      <span className="text-sm text-gray-700">Text Answer</span>
+                    </label>
+                  </div>
+                </div>
+
                 {/* Question */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -237,13 +277,30 @@ export default function FoundItemQuestionsPage() {
                     type="text"
                     value={q.question}
                     onChange={(e) => handleQuestionChange(index, "question", e.target.value)}
-                    placeholder="e.g., What brand is this device?"
+                    placeholder={q.question_type === "text" ? "e.g., What is written on the back?" : "e.g., What brand is this device?"}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                     required
                   />
                 </div>
 
-                {/* Answer Choices */}
+                {/* Answer Choices or Text Answer based on type */}
+                {q.question_type === "text" ? (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Your Answer*
+                    </label>
+                    <input
+                      type="text"
+                      value={q.text_answer}
+                      onChange={(e) => handleQuestionChange(index, "text_answer", e.target.value)}
+                      placeholder="Enter your answer"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {/* Answer Choices */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -317,6 +374,8 @@ export default function FoundItemQuestionsPage() {
                     {q.choice_d && <option value="D">D - {q.choice_d}</option>}
                   </select>
                 </div>
+                  </>
+                )}
               </div>
             ))}
 

@@ -9,7 +9,7 @@ import random
 from datetime import datetime, timedelta
 import os
 
-DB_PATH = "trackeback_100k.db"
+DB_PATH = "traceback_100k.db"
 
 def generate_random_time():
     """Generate a random time during business hours (7 AM to 11 PM)"""

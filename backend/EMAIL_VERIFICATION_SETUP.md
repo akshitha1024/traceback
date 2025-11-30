@@ -186,7 +186,7 @@ Content-Type: application/json
 # Reset verification table
 python -c "
 import sqlite3
-conn = sqlite3.connect('trackeback_100k.db')
+conn = sqlite3.connect('traceback_100k.db')
 conn.execute('DROP TABLE IF EXISTS email_verifications')
 conn.close()
 print('Verification table reset')

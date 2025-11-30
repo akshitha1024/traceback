@@ -7,7 +7,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 def extend_privacy_period():
-    conn = sqlite3.connect('trackeback_100k.db')
+    conn = sqlite3.connect('traceback_100k.db')
     c = conn.cursor()
     
     # Set privacy expiry date to 90 days from now (instead of 30)

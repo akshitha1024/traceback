@@ -6,7 +6,7 @@ import sqlite3
 import os
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'trackeback_100k.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'traceback_100k.db')
 
 def inspect_users_table():
     """Inspect the users table structure and data"""

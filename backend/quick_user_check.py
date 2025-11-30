@@ -8,7 +8,7 @@ import sys
 import os
 
 # Database path
-DB_PATH = "trackeback_100k.db"
+DB_PATH = "traceback_100k.db"
 
 def check_user_exists():
     """Check if the user exists in database"""

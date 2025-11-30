@@ -13,6 +13,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -147,18 +148,24 @@ export default function Signup() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50" 
                   value={password} 
                   onChange={e=>setPassword(e.target.value)} 
                   placeholder="Create a password"
                   required 
                 />
+                <div className="mt-2 text-sm">
+                  <label className="inline-flex items-center text-gray-600">
+                    <input type="checkbox" className="mr-2" checked={showPassword} onChange={(e)=>setShowPassword(e.target.checked)} />
+                    Show password
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50" 
                   value={confirm} 
                   onChange={e=>setConfirm(e.target.value)} 
@@ -190,6 +197,23 @@ export default function Signup() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

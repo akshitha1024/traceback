@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime, timedelta
 
 # Connect to database
-conn = sqlite3.connect('trackeback_100k.db', timeout=20)
+conn = sqlite3.connect('traceback_100k.db', timeout=20)
 conn.execute('PRAGMA journal_mode=WAL')
 
 # Create reviews table

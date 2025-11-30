@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('trackeback_100k.db')
+conn = sqlite3.connect('traceback_100k.db')
 c = conn.cursor()
 
 print("🚀 Fast update: Setting privacy to 1 month from posted date...")

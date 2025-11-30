@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('trackeback_100k.db')
+conn = sqlite3.connect('traceback_100k.db')
 c = conn.cursor()
 
 print("📋 Sample found items privacy data:")

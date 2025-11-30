@@ -19,7 +19,7 @@ def update_password():
     print(f"🔨 Generated hash: {password_hash}")
     
     # Update in database
-    conn = sqlite3.connect('trackeback_100k.db')
+    conn = sqlite3.connect('traceback_100k.db')
     c = conn.cursor()
     
     # Update the password

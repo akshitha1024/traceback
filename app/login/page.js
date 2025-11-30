@@ -10,6 +10,7 @@ export default function Login() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,6 +26,8 @@ export default function Login() {
     setLoading(true);
     
     try {
+      console.log('Attempting login with:', email.trim().toLowerCase());
+      
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: {
@@ -36,12 +39,22 @@ export default function Login() {
         })
       });
       
+      console.log('Response status:', response.status);
+      
       const data = await response.json();
+      console.log('Response data:', data);
       
       if (response.ok) {
         // Store session token
         localStorage.setItem("sessionToken", data.session_token);
+          // Clear explicit-logout flag so session restores normally
+          try { localStorage.removeItem('loggedOutByUser'); } catch(e) {}
+        // Set session expiry for 1 hour
+        const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+        localStorage.setItem('sessionExpiresAt', String(expiresAt));
         localStorage.setItem("user", JSON.stringify(data.user));
+        
+        console.log('Login successful, redirecting...');
         
         // Check if profile is complete
         const profileComplete = data.user.profile_completed === true || 
@@ -49,16 +62,20 @@ export default function Login() {
         
         if (!profileComplete) {
           // Redirect to profile creation if not complete
+          console.log('Profile incomplete, redirecting to /profile/create');
           nav.push("/profile/create");
         } else {
           // Redirect to dashboard or requested page
           const redirectTo = searchParams.get("redirect") || "/dashboard";
+          console.log('Redirecting to:', redirectTo);
           nav.push(redirectTo);
         }
       } else {
+        console.error('Login failed:', data.error);
         setError(data.error || "Login failed");
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError("Failed to connect to server. Please try again.");
     } finally {
       setLoading(false);
@@ -113,21 +130,24 @@ export default function Login() {
                 </label>
                 <input 
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white/50" 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   value={password} 
                   onChange={e=>setPassword(e.target.value)} 
                   placeholder="Enter your password"
                   required 
                 />
+                <div className="mt-2 text-sm">
+                  <label className="inline-flex items-center text-gray-600">
+                    <input type="checkbox" className="mr-2" checked={showPassword} onChange={(e)=>setShowPassword(e.target.checked)} />
+                    Show password
+                  </label>
+                </div>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 text-gray-600">
-                  <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> 
-                  Remember me
-                </label>
-                <button type="button" className="text-gray-600 hover:text-gray-800 font-medium transition-colors">
+                {/* Remember me removed - sessions expire automatically after 1 hour */}
+                <Link href="/forgot-password" className="text-gray-600 hover:text-gray-800 font-medium transition-colors">
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <button 
                 className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
@@ -150,6 +170,23 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import Protected from "@/components/Protected";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ReportButton from "@/components/ReportButton";
-import { lostItems, foundItems } from "@/data/mock";
+import { foundItems } from "@/data/mock";
 
 // Matching algorithm that calculates similarity scores
 const calculateMatchScore = (item1, item2) => {
@@ -148,45 +148,128 @@ export default function Matches() {
   const [matches, setMatches] = useState([]);
   const [allMatches, setAllMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (itemId) {
-      // Find matches for specific item
-      const allItems = [...lostItems, ...foundItems];
-      const item = allItems.find(i => i.id === itemId);
+    const fetchMatches = async () => {
+      setLoading(true);
+      setError(null);
       
-      if (item) {
-        setTargetItem(item);
-        const searchIn = item.type === 'LOST' ? foundItems : lostItems;
-        const foundMatches = findMatches(item, searchIn);
-        setMatches(foundMatches);
-      }
-    } else {
-      // Find all potential matches for user's items (demo: use first few lost items as "user's items")
-      const userItems = lostItems.slice(0, 3); // Simulate user's reported items
-      const allPotentialMatches = [];
-      
-      userItems.forEach(userItem => {
-        const searchIn = userItem.type === 'LOST' ? foundItems : lostItems;
-        const itemMatches = findMatches(userItem, searchIn);
+      try {
+        // Get user ID from localStorage
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = user.id;
         
-        itemMatches.forEach(match => {
-          allPotentialMatches.push({
-            ...match,
-            forItem: userItem,
-            matchScore: match.matchScore
-          });
-        });
-      });
-      
-      // Sort by match score and remove duplicates
-      const uniqueMatches = allPotentialMatches
-        .sort((a, b) => b.matchScore - a.matchScore)
-        .slice(0, 10); // Show top 10 matches
-      
-      setAllMatches(uniqueMatches);
-    }
-    setLoading(false);
+        if (!userId) {
+          setError('Please log in to view matches');
+          setLoading(false);
+          return;
+        }
+
+        if (itemId) {
+          // Find matches for specific item - use backend ML matching
+          const response = await fetch(`http://localhost:5000/api/found-items/${itemId}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch item matches');
+          }
+          const data = await response.json();
+          setTargetItem(data.item);
+          setMatches(data.matches || []);
+        } else {
+          // Get all user's reports with matches from backend
+          const response = await fetch(`http://localhost:5000/api/user/${userId}/reports-with-matches`);
+          if (!response.ok) {
+            // Check if it's a 500 error or other server error
+            const errorData = await response.json().catch(() => null);
+            if (response.status === 500) {
+              throw new Error('Server error. Please make sure the backend is running.');
+            }
+            throw new Error(errorData?.error || 'Failed to fetch user matches');
+          }
+          const data = await response.json();
+          
+          // Check if user has any reports
+          if (!data.lost_reports && !data.found_reports) {
+            setAllMatches([]);
+            return;
+          }
+          
+          // Flatten all matches from lost and found reports
+          const allPotentialMatches = [];
+          
+          // Add matches for user's lost items
+          if (data.lost_reports && Array.isArray(data.lost_reports)) {
+            data.lost_reports.forEach(report => {
+              if (report.matches && Array.isArray(report.matches)) {
+                report.matches.forEach(match => {
+                  allPotentialMatches.push({
+                    ...match,
+                    forItem: {
+                      id: report.id,
+                      title: report.title || report.item_name,
+                      description: report.description,
+                      category: report.category_name || report.category,
+                      location: report.location_name || report.location,
+                      date: report.date_lost,
+                      time: report.time_lost,
+                      type: 'LOST',
+                      reportedBy: report.user_name || report.user_email
+                    },
+                    matchScore: Math.round(match.match_score * 100),
+                    type: 'FOUND'
+                  });
+                });
+              }
+            });
+          }
+          
+          // Add matches for user's found items
+          if (data.found_reports && Array.isArray(data.found_reports)) {
+            data.found_reports.forEach(report => {
+              if (report.matches && Array.isArray(report.matches)) {
+                report.matches.forEach(match => {
+                  allPotentialMatches.push({
+                    ...match,
+                    forItem: {
+                      id: report.id,
+                      title: report.title || report.item_name,
+                      description: report.description,
+                      category: report.category_name || report.category,
+                      location: report.location_name || report.location,
+                      date: report.date_found,
+                      time: report.time_found,
+                      type: 'FOUND',
+                      reportedBy: report.finder_name || report.finder_email
+                    },
+                    matchScore: Math.round(match.match_score * 100),
+                    type: 'LOST'
+                  });
+                });
+              }
+            });
+          }
+          
+          // Sort by match score and take top 20
+          const sortedMatches = allPotentialMatches
+            .sort((a, b) => b.matchScore - a.matchScore)
+            .slice(0, 20);
+          
+          setAllMatches(sortedMatches);
+        }
+      } catch (err) {
+        console.error('Error fetching matches:', err);
+        // Check if it's a network error (backend not running)
+        if (err.message.includes('fetch') || err.message.includes('NetworkError') || err.message.includes('Failed to fetch')) {
+          setError('Unable to connect to server. Please make sure the backend is running on http://localhost:5000');
+        } else {
+          setError(err.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatches();
   }, [itemId]);
 
   if (loading) {
@@ -248,14 +331,26 @@ export default function Matches() {
               </Link>
             </div>
 
-            {allMatches.length === 0 ? (
+            {error ? (
+              <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Matches</h2>
+                <p className="text-gray-600 mb-6">{error}</p>
+                <Link href="/dashboard" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200">
+                  Back to Dashboard
+                </Link>
+              </div>
+            ) : allMatches.length === 0 ? (
               <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
                 <div className="text-6xl mb-4">🔍</div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">No Matches Yet</h2>
-                <p className="text-gray-600 mb-6">Report some items to start finding matches!</p>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">No Matches Found</h2>
+                <p className="text-gray-600 mb-6">You haven't reported any items yet, or there are no matches for your reports.</p>
                 <div className="flex justify-center gap-4">
-                  <Link href="/report" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200">
+                  <Link href="/lost" className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200">
                     Report Lost Item
+                  </Link>
+                  <Link href="/found" className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200">
+                    Report Found Item
                   </Link>
                   <Link href="/dashboard" className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-200">
                     Back to Dashboard
@@ -265,7 +360,7 @@ export default function Matches() {
             ) : (
               <div className="space-y-6">
                 {allMatches.map((match, index) => (
-                  <div key={`${match.id}-${match.forItem.id}`} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6">
+                  <div key={`${match.rowid || match.id}-${match.forItem.id}`} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* Your Item */}
                       <div className="space-y-3">
@@ -292,8 +387,8 @@ export default function Matches() {
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold text-gray-800 border-b border-gray-200 pb-2">Potential Match</h3>
                           <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
-                            match.matchScore >= 80 ? 'bg-green-100 text-green-800' :
-                            match.matchScore >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                            match.matchScore >= 50 ? 'bg-green-100 text-green-800' :
+                            match.matchScore >= 40 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-orange-100 text-orange-800'
                           }`}>
                             <span>⚡</span>
@@ -309,27 +404,27 @@ export default function Matches() {
                             }`}>
                               {match.type}
                             </span>
-                            <span className="text-xs text-gray-600">{match.category}</span>
+                            <span className="text-xs text-gray-600">{match.category || 'N/A'}</span>
                           </div>
-                          <h4 className="font-medium text-gray-900 mb-1">{match.title}</h4>
+                          <h4 className="font-medium text-gray-900 mb-1">{match.item_name || match.title}</h4>
                           <p className="text-sm text-gray-600 mb-2">{match.description}</p>
                           <div className="flex items-center justify-between">
                             <p className="text-xs text-gray-500">📍 {match.location}</p>
-                            <p className="text-xs text-gray-500">👤 {match.reportedBy}</p>
+                            <p className="text-xs text-gray-500">📅 {match.date_lost || match.date_found}</p>
                           </div>
                         </div>
                         
                         <div className="flex gap-2">
                           <Link 
-                            href={`/matches?item=${match.forItem.id}`}
+                            href={`/items/${match.rowid || match.id}`}
                             className="flex-1 bg-gray-900 hover:bg-black text-white px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 text-center"
                           >
-                            View All Matches
+                            View Details
                           </Link>
                           <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200">
                             Contact Owner
                           </button>
-                          <ReportButton type="item" targetId={match.id} size="small" style="icon" />
+                          <ReportButton type="item" targetId={match.rowid || match.id} size="small" style="icon" />
                         </div>
                       </div>
                     </div>
@@ -496,6 +591,23 @@ export default function Matches() {
           </div>
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-8 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm">
+            <Link href="/about" className="hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/how-it-works" className="hover:text-gray-300 transition-colors">How It Works</Link>
+            <Link href="/faq" className="hover:text-gray-300 transition-colors">FAQ</Link>
+            <Link href="/report-bug" className="hover:text-gray-300 transition-colors">Report Bug / Issue</Link>
+            <Link href="/contact" className="hover:text-gray-300 transition-colors">Contact</Link>
+            <Link href="/terms" className="hover:text-gray-300 transition-colors">Terms of Service</Link>
+          </div>
+          <div className="mt-4 text-gray-400 text-xs">
+            © 2025 TraceBack — Made for campus communities. Built by Team Bravo (Fall 2025), Kent State University.
+          </div>
+        </div>
+      </footer>
     </Protected>
   );
 }

@@ -9,3 +9,4 @@ pillow==10.0.0
 marshmallow==3.20.1
 flask-marshmallow==0.15.0
 marshmallow-sqlalchemy==0.29.0
+schedule==1.2.0

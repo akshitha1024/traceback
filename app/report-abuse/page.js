@@ -5,7 +5,7 @@ import Link from "next/link";
 import Protected from "@/components/Protected";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { lostItems, foundItems, users, reportCategories } from "@/data/mock";
+import { foundItems, users, reportCategories } from "@/data/mock";
 
 export default function ReportAbuse() {
   const searchParams = useSearchParams();
@@ -45,7 +45,7 @@ export default function ReportAbuse() {
       localStorage.removeItem('reportClaimInfo');
     } else if (targetType && targetId) {
       if (targetType === 'item') {
-        const allItems = [...lostItems, ...foundItems];
+        const allItems = [...foundItems];
         const item = allItems.find(i => i.id === targetId);
         setTargetItem(item);
       } else if (targetType === 'user') {
@@ -70,14 +70,15 @@ export default function ReportAbuse() {
     // Get current user from localStorage
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     
+    // All reports are anonymous (name shows as Anonymous, but email stored for moderators)
     const reportData = claimInfo ? {
       // Reporting a false claim
       type: 'CLAIM',
       target_id: claimInfo.claimId,
       target_title: `False Claim: ${claimInfo.itemTitle}`,
       reported_by_id: currentUser.id || null,
-      reported_by_name: formData.anonymous ? 'Anonymous' : (currentUser.name || 'Anonymous'),
-      reported_by_email: formData.anonymous ? null : currentUser.email,
+      reported_by_name: 'Anonymous',
+      reported_by_email: currentUser.email,
       category: formData.category,
       reason: formData.reason,
       description: formData.description
@@ -87,8 +88,8 @@ export default function ReportAbuse() {
       target_id: parseInt(targetId),
       target_title: targetItem?.title || targetItem?.name || "Unknown",
       reported_by_id: currentUser.id || null,
-      reported_by_name: formData.anonymous ? 'Anonymous' : (currentUser.name || 'Anonymous'),
-      reported_by_email: formData.anonymous ? null : currentUser.email,
+      reported_by_name: 'Anonymous',
+      reported_by_email: currentUser.email,
       category: formData.category,
       reason: formData.reason,
       description: formData.description
@@ -129,28 +130,13 @@ export default function ReportAbuse() {
             <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
               <div className="text-6xl mb-4">✅</div>
               <h1 className="text-2xl font-bold text-gray-900 mb-4">Report Submitted</h1>
-              <p className="text-gray-600 mb-6">
-                Thank you for helping keep our community safe. Your report has been submitted and will be reviewed by our moderation team.
+              <p className="text-gray-600 mb-8">
+                Your report has been shared with moderators only. We will review this post and take appropriate action. Thank you for reporting.
               </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left max-w-md mx-auto">
-                <h3 className="font-medium text-blue-900 mb-2">What happens next?</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Our team will review your report within 24 hours</li>
-                  <li>• We'll investigate the reported content/user</li>
-                  <li>• Appropriate action will be taken if needed</li>
-                  <li>• You may receive updates on serious violations</li>
-                </ul>
-              </div>
               <div className="flex justify-center gap-4">
                 <Link href="/dashboard" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200">
                   Back to Dashboard
                 </Link>
-                <button 
-                  onClick={() => {setSubmitted(false); setFormData({category: "", reason: "", description: "", anonymous: false});}}
-                  className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-lg font-medium transition-all duration-200"
-                >
-                  Report Another Issue
-                </button>
               </div>
             </div>
           </main>
@@ -289,70 +275,28 @@ export default function ReportAbuse() {
                   onChange={handleInputChange}
                   rows="4"
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent bg-white transition-all duration-200 resize-none"
-                  placeholder="Please provide any additional context that would help our moderation team understand the issue..."
+                  placeholder="Optional: Provide any additional context..."
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Optional: Provide more details about what happened, when it occurred, or any other relevant information.
-                </p>
-              </div>
-
-              {/* Anonymous Option */}
-              <div className="flex items-start">
-                <input
-                  type="checkbox"
-                  name="anonymous"
-                  checked={formData.anonymous}
-                  onChange={handleInputChange}
-                  className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-gray-500 mt-1"
-                />
-                <div className="ml-3">
-                  <label className="text-sm font-medium text-gray-700">
-                    Submit report anonymously
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Your identity will not be shared with the reported user, but our moderation team may still see it for investigation purposes.
-                  </p>
-                </div>
               </div>
 
               {/* Submit Button */}
               <div className="border-t border-gray-200 pt-6">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-500">
-                    By submitting this report, you agree to our community guidelines and terms of service.
-                  </p>
-                  <button
-                    type="submit"
-                    disabled={loading || !formData.category || !formData.reason}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Submitting...
-                      </div>
-                    ) : (
-                      "Submit Report"
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !formData.category || !formData.reason}
+                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Submitting...
+                    </div>
+                  ) : (
+                    "Submit Report"
+                  )}
+                </button>
               </div>
             </form>
-          </div>
-
-          {/* Help Section */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <h3 className="font-semibold text-blue-900 mb-3">Need immediate help?</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
-              <div>
-                <h4 className="font-medium mb-1">Emergency situations:</h4>
-                <p>If you're in immediate danger, contact campus security or local authorities immediately.</p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-1">Technical issues:</h4>
-                <p>For app-related problems, contact our support team at support@traceback.edu</p>
-              </div>
-            </div>
           </div>
         </main>
       </div>
