@@ -262,8 +262,8 @@ export default function HowItWorks() {
 
         {/* Back to Home */}
         <div className="text-center mt-12">
-          <Link href="/" className="inline-block text-gray-600 hover:text-gray-900 font-medium transition-colors">
-            ← Back to Home
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="inline-block text-gray-600 hover:text-gray-900 font-medium transition-colors">
+             Back to Home
           </Link>
         </div>
       </main>

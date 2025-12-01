@@ -321,8 +321,8 @@ export default function TermsOfService() {
 
         {/* Back to Home */}
         <div className="text-center mt-8">
-          <Link href="/" className="inline-block text-gray-600 hover:text-gray-900 font-medium transition-colors">
-            ← Back to Home
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="inline-block text-gray-600 hover:text-gray-900 font-medium transition-colors">
+             Back to Home
           </Link>
         </div>
       </main>

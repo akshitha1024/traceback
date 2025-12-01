@@ -32,9 +32,9 @@ class EmailVerificationService:
                 'provider': 'gmail',
                 'smtp_server': 'smtp.gmail.com',
                 'smtp_port': 587,
-                'email': 'your-app-email@gmail.com',  # UPDATE THIS
-                'password': 'your-app-password',  # UPDATE THIS
-                'from_name': 'TrackeBack - Kent State'
+                'email': 'traceback24@gmail.com',  # UPDATE THIS
+                'password': 'Aksh@1024',  # UPDATE THIS
+                'from_name': 'TraceBack - Kent State'
             }
             self.settings = {
                 'code_length': 6,
@@ -94,7 +94,7 @@ class EmailVerificationService:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>🏫 <span class="kent-logo">Kent State University</span></h1>
+                    <h1><span class="kent-logo">Kent State University</span></h1>
                     <h2>TrackeBack Verification</h2>
                 </div>
                 
@@ -142,7 +142,7 @@ class EmailVerificationService:
         try:
             # Create email
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = f"TrackeBack Verification Code: {verification_code}"
+            msg['Subject'] = f"TraceBack Verification Code: {verification_code}"
             msg['From'] = f"{self.smtp_config['from_name']} <{self.smtp_config['email']}>"
             msg['To'] = email
             

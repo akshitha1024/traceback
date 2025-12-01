@@ -156,7 +156,7 @@ export default function About() {
 
         {/* Back to Home */}
         <div className="text-center mt-12">
-          <Link href="/" className="inline-block bg-gray-900 hover:bg-black text-white px-8 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="inline-block bg-gray-900 hover:bg-black text-white px-8 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
             Back to Home
           </Link>
         </div>

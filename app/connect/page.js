@@ -171,19 +171,18 @@ export default function ConnectWithPeople() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
+      {/* Header - match dashboard style */}
       <header className="bg-white/80 backdrop-blur-md shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center space-x-2">
+            <Link href="/dashboard" className="flex items-center">
               <Image
                 src="/logo.png"
                 alt="TraceBack Logo"
-                width={40}
-                height={40}
-                className="h-10 w-auto"
+                width={320}
+                height={100}
+                className="h-20 w-auto sm:h-24"
               />
-              <span className="text-xl font-bold text-gray-900">TraceBack</span>
             </Link>
             <Link
               href="/dashboard"
