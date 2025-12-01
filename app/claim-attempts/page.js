@@ -264,7 +264,7 @@ export default function ClaimAttemptsPage() {
                                 </div>
                                 <div className="flex items-center gap-3 mt-3">
                                   <a
-                                    href={`/messages?conversation=claim_${attempt.found_item_id}_${encodeURIComponent(attempt.finder_email)}&item_id=${attempt.found_item_id}&item_title=${encodeURIComponent(attempt.item_title)}&other_email=${encodeURIComponent(attempt.finder_email)}&other_name=${encodeURIComponent(attempt.finder_name || 'Owner')}`}
+                                    href={`/messages?conversation=claim_${attempt.found_item_id}_${encodeURIComponent(attempt.finder_email)}`}
                                     className="flex-1 bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-center"
                                   >
                                     💬 Message Finder

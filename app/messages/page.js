@@ -26,42 +26,74 @@ export default function MessagesPage() {
     setCurrentUser(user);
     loadConversations(user.id);
     
-    // Check if we need to start a new conversation from query params
+    // Check if we need to start a new conversation from query params (only conversation ID)
     const conversationId = searchParams.get('conversation');
-    const itemId = searchParams.get('item_id');
-    const itemTitle = searchParams.get('item_title');
-    const otherEmail = searchParams.get('other_email');
-    const otherName = searchParams.get('other_name');
     
-    if (conversationId && itemId && otherEmail) {
-      // Fetch other user ID from email
-      fetchUserIdAndStartConversation(user, conversationId, itemId, itemTitle, otherEmail, otherName);
+    if (conversationId) {
+      // Fetch conversation details from backend
+      fetchConversationDetails(user, conversationId);
     }
   }, [router, searchParams]);
   
-  const fetchUserIdAndStartConversation = async (user, conversationId, itemId, itemTitle, otherEmail, otherName) => {
+  const fetchConversationDetails = async (user, conversationId) => {
     try {
-      // Fetch user ID by email
-      const response = await fetch(`http://localhost:5000/api/user-by-email?email=${encodeURIComponent(otherEmail)}`);
+      console.log('Fetching conversation details:', { conversationId });
+      
+      // Fetch conversation details from backend using secure ID
+      const convResponse = await fetch(`http://localhost:5000/api/get-conversation-details?conversation_id=${conversationId}&user_id=${user.id}`);
+      const convData = await convResponse.json();
+      
+      if (!convData.other_user_id || !convData.item_id) {
+        console.error('Invalid conversation data:', convData);
+        alert('Unable to load conversation');
+        return;
+      }
+      
+      const otherUserId = convData.other_user_id;
+      const itemId = convData.item_id;
+      
+      console.log('Other user ID:', otherUserId, 'Item ID:', itemId);
+      
+      // Fetch user details by ID
+      const response = await fetch(`http://localhost:5000/api/user/${otherUserId}`);
       const data = await response.json();
       
+      console.log('User data:', data);
+      
       if (data.user) {
+        // Fetch item title
+        let itemTitle = 'Item';
+        try {
+          const itemResponse = await fetch(`http://localhost:5000/api/found-items/${itemId}`);
+          const itemData = await itemResponse.json();
+          if (itemData.title) {
+            itemTitle = itemData.title;
+          }
+        } catch (itemError) {
+          console.log('Could not fetch item title:', itemError);
+        }
+        
         const newConv = {
           conversation_id: conversationId,
           item_id: itemId,
           item_type: 'FOUND',
-          item_title: itemTitle || 'Item',
+          item_title: itemTitle,
           other_user_id: data.user.id,
-          other_user_name: otherName || data.user.full_name,
-          other_user_email: otherEmail,
+          other_user_name: `User #${data.user.id}`,
+          other_user_email: data.user.email,
           last_message: '',
           last_message_time: new Date().toISOString(),
           unread_count: 0
         };
+        console.log('Setting conversation:', newConv);
         setSelectedConversation(newConv);
+      } else {
+        console.error('User not found for ID:', otherUserId);
+        alert('Unable to start conversation: User not found');
       }
     } catch (error) {
-      console.error('Error fetching user:', error);
+      console.error('Error fetching conversation details:', error);
+      alert('Failed to load conversation. Please try again.');
     }
   };
 
@@ -98,7 +130,7 @@ export default function MessagesPage() {
 
   const loadMessages = async (conversationId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${conversationId}`);
+      const response = await fetch(`http://localhost:5000/api/messages?conversation_id=${conversationId}&user_id=${currentUser.id}`);
       const data = await response.json();
       setMessages(data.messages || []);
       
@@ -197,8 +229,8 @@ export default function MessagesPage() {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-semibold text-white">{conv.other_user_name}</h3>
-                      <span className="text-xs text-gray-500">{formatTime(conv.last_message_time)}</span>
+                      <h3 className="font-semibold text-white text-xs break-all">Conv #{conv.conversation_id.substring(0, 12)}</h3>
+                      <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{formatTime(conv.last_message_time)}</span>
                     </div>
                     <p className="text-sm text-gray-400 mb-1 truncate">{conv.last_message}</p>
                     <p className="text-xs text-gray-500 truncate">
@@ -220,24 +252,30 @@ export default function MessagesPage() {
                 <>
                   {/* Chat Header */}
                   <div className="p-4 border-b border-gray-700 bg-gray-800">
-                    <h2 className="text-lg font-semibold text-white">{selectedConversation.other_user_name}</h2>
+                    <h2 className="text-lg font-semibold text-white text-sm break-all">Conversation #{selectedConversation.conversation_id}</h2>
                   </div>
 
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {messages.map((msg) => {
-                      const isSender = msg.sender_id === currentUser.id;
-                      return (
-                        <div key={msg.message_id} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[70%] ${isSender ? 'bg-blue-600' : 'bg-gray-700'} rounded-lg p-3`}>
-                            <p className="text-white">{msg.message_text}</p>
-                            <p className="text-xs text-gray-300 mt-1">
-                              {formatTime(msg.created_at)}
-                            </p>
+                    {messages.length === 0 ? (
+                      <div className="flex items-center justify-center h-full">
+                        <p className="text-gray-400 text-center">No messages yet. Start the conversation below!</p>
+                      </div>
+                    ) : (
+                      messages.map((msg) => {
+                        const isSender = msg.sender_id === currentUser.id;
+                        return (
+                          <div key={msg.message_id} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[70%] ${isSender ? 'bg-blue-600' : 'bg-gray-700'} rounded-lg p-3`}>
+                              <p className="text-white">{msg.message_text}</p>
+                              <p className="text-xs text-gray-300 mt-1">
+                                {formatTime(msg.created_at)}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
 

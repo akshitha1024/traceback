@@ -364,19 +364,25 @@ export default function FoundItemDetailsPage() {
                   <div key={attempt.attempt_id} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 shadow-sm">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                          {attempt.user_name?.charAt(0) || 'U'}
+                        <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                          {attempt.conversation_id ? attempt.conversation_id.substring(0, 1).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900">{attempt.user_name || 'Unknown User'}</h3>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            <a href={`mailto:${attempt.user_email}`} className="hover:text-blue-600 underline">
-                              {attempt.user_email}
-                            </a>
-                          </div>
+                          <h3 className="font-semibold text-gray-900 break-all text-sm">
+                            {attempt.conversation_id ? `Claimer #${attempt.conversation_id.substring(0, 12)}` : 'Anonymous Claimer'}
+                          </h3>
+                          {(attempt.success === 1 || attempt.marked_as_potential_at) ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              <a href={`mailto:${attempt.user_email}`} className="hover:text-blue-600 underline">
+                                {attempt.user_email}
+                              </a>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-500 italic">Contact info revealed when verified</p>
+                          )}
                         </div>
                       </div>
                       {attempt.success === 1 && (
@@ -460,10 +466,33 @@ export default function FoundItemDetailsPage() {
 
                     {/* Contact This Claimer Button */}
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const user = JSON.parse(localStorage.getItem('user') || '{}');
-                        const conversationId = `conv_${Math.min(user.id, attempt.user_id || 0)}_${Math.max(user.id, attempt.user_id || 0)}_${foundItem.id}`;
-                        window.location.href = `/messages?conversation=${conversationId}&item_id=${foundItem.id}&item_title=${encodeURIComponent(foundItem.title)}&other_email=${attempt.user_email}&other_name=${encodeURIComponent(attempt.user_name || 'Claimer')}`;
+                        const userId1 = Math.min(user.id, attempt.user_id || 0);
+                        const userId2 = Math.max(user.id, attempt.user_id || 0);
+                        
+                        // Create conversation on backend and get secure ID
+                        try {
+                          const response = await fetch('http://localhost:5000/api/create-conversation', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              user_id_1: userId1,
+                              user_id_2: userId2,
+                              item_id: foundItem.id,
+                              requester_id: user.id
+                            })
+                          });
+                          const data = await response.json();
+                          if (data.conversation_id) {
+                            window.location.href = `/messages?conversation=${data.conversation_id}`;
+                          } else {
+                            alert('Failed to create conversation');
+                          }
+                        } catch (error) {
+                          console.error('Error creating conversation:', error);
+                          alert('Failed to create conversation');
+                        }
                       }}
                       className="w-full mb-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                     >

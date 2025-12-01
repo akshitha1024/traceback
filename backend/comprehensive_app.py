@@ -2592,6 +2592,11 @@ def get_claim_attempts_for_item(found_item_id):
             conn.close()
             return jsonify({'error': 'Unauthorized: You can only view attempts for your own items'}), 403
         
+        # Get finder's user_id
+        cursor.execute('SELECT id FROM users WHERE email = ?', (finder_email,))
+        finder_user = cursor.fetchone()
+        finder_user_id = finder_user['id'] if finder_user else None
+        
         # Get all claim attempts for this item
         cursor.execute('''
             SELECT 
@@ -2661,6 +2666,61 @@ def get_claim_attempts_for_item(found_item_id):
                         })
                 except json.JSONDecodeError:
                     attempt_dict['answers_with_questions'] = []
+            
+            # Generate conversation ID for this claimer-finder pair
+            if attempt_dict['user_id'] and finder_user_id:
+                # Check if conversation already exists
+                temp_conn = sqlite3.connect(DB_PATH)
+                temp_conn.row_factory = sqlite3.Row
+                temp_cursor = temp_conn.cursor()
+                
+                temp_cursor.execute('''
+                    SELECT secure_id FROM conversations 
+                    WHERE ((user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?))
+                    AND item_id = ?
+                ''', (finder_user_id, attempt_dict['user_id'], attempt_dict['user_id'], finder_user_id, found_item_id))
+                existing = temp_cursor.fetchone()
+                
+                if existing:
+                    attempt_dict['conversation_id'] = existing[0]
+                else:
+                    # Generate new encrypted conversation ID and store it
+                    import hashlib
+                    import secrets
+                    import time
+                    
+                    salt = secrets.token_hex(16)
+                    timestamp = str(int(time.time() * 1000))
+                    conversation_key = f"{min(finder_user_id, attempt_dict['user_id'])}_{max(finder_user_id, attempt_dict['user_id'])}_{found_item_id}"
+                    combined = f"{conversation_key}_{salt}_{timestamp}"
+                    
+                    # Apply PBKDF2 with 100,000 iterations
+                    secure_bytes = hashlib.pbkdf2_hmac('sha256', combined.encode(), salt.encode(), 100000)
+                    secure_id = secure_bytes.hex()[:32]
+                    
+                    # Store in database
+                    temp_cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS conversations (
+                            secure_id TEXT PRIMARY KEY,
+                            user_id_1 INTEGER NOT NULL,
+                            user_id_2 INTEGER NOT NULL,
+                            item_id INTEGER NOT NULL,
+                            created_at TEXT NOT NULL
+                        )
+                    ''')
+                    
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    temp_cursor.execute('''
+                        INSERT INTO conversations (secure_id, user_id_1, user_id_2, item_id, created_at)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (secure_id, finder_user_id, attempt_dict['user_id'], found_item_id, current_time))
+                    
+                    temp_conn.commit()
+                    attempt_dict['conversation_id'] = secure_id
+                
+                temp_conn.close()
+            else:
+                attempt_dict['conversation_id'] = None
             
             attempts_list.append(attempt_dict)
         
@@ -2825,8 +2885,22 @@ def submit_claim_answers():
         if not found_item_id:
             return jsonify({'error': 'Found item ID required'}), 400
         
-        if not claimer_email:
-            return jsonify({'error': 'User email required'}), 400
+        # If email is "anonymous" or empty, generate encrypted anonymous identifier
+        if not claimer_email or claimer_email.lower() == 'anonymous':
+            import hashlib
+            import secrets
+            import time
+            
+            # Generate unique encrypted ID for anonymous claimer
+            salt = secrets.token_hex(16)
+            timestamp = str(int(time.time() * 1000))
+            random_data = secrets.token_hex(8)
+            combined = f"anonymous_claim_{found_item_id}_{timestamp}_{random_data}_{salt}"
+            
+            # Create encrypted email-like identifier
+            encrypted_bytes = hashlib.pbkdf2_hmac('sha256', combined.encode(), salt.encode(), 100000)
+            encrypted_id = f"anon_{encrypted_bytes.hex()[:24]}@encrypted.local"
+            claimer_email = encrypted_id
         
         # Get item details first to check ownership
         item_check = conn.execute('''
@@ -2890,19 +2964,23 @@ def submit_claim_answers():
         import json
         answers_json = json.dumps(user_answers)
         
+        # Get user_id from email
+        user_record = conn.execute('SELECT id FROM users WHERE email = ?', (claimer_email,)).fetchone()
+        claimer_user_id = user_record['id'] if user_record else None
+        
         # Use local ET time for attempted_at
         attempted_at_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         conn.execute('''
             INSERT INTO claim_attempts 
-            (found_item_id, user_email, answers_json, attempted_at, success)
-            VALUES (?, ?, ?, ?, 0)
-        ''', (found_item_id, claimer_email, answers_json, attempted_at_str))
+            (found_item_id, user_id, user_email, answers_json, attempted_at, success)
+            VALUES (?, ?, ?, ?, ?, 0)
+        ''', (found_item_id, claimer_user_id, claimer_email, answers_json, attempted_at_str))
         
         attempt_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         
-        # Create notification for finder (use INSERT OR REPLACE to avoid duplicates)
-        notification_message = f"{claimer_name} ({claimer_email}) has submitted answers to claim your found item: {item_details['title']}. Review their answers in your dashboard."
+        # Create notification for finder (keep claimer anonymous)
+        notification_message = f"An anonymous user has submitted answers to claim your found item: {item_details['title']}. Review their answers in your dashboard."
         
         # Use local ET time for notification created_at
         notification_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -2922,9 +3000,57 @@ def submit_claim_answers():
         ))
         
         conn.commit()
+        
+        # Send email notification to finder
+        try:
+            from email_verification_service import send_email
+            
+            finder_name = item_details['finder_name'] or 'Finder'
+            finder_email = item_details['finder_email']
+            item_title = item_details['title']
+            
+            if finder_email:
+                subject = f"Someone Answered Your Verification Questions - TraceBack"
+                body = f"""Hello {finder_name},
+
+Good news! Someone has answered the verification questions for your found item.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FOUND ITEM: {item_title}
+
+An anonymous claimer has submitted answers to your verification questions.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NEXT STEPS:
+
+1. Log in to TraceBack and go to your Dashboard
+2. Navigate to "Found Items" section
+3. Review the claimer's answers to your verification questions
+4. Accept if the answers are correct, or reject if they don't match
+
+Note: Claimer identity remains anonymous until you accept their claim.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Best regards,
+TraceBack Team
+Kent State University
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated notification. Please do not reply to this email.
+"""
+                
+                send_email(finder_email, subject, body)
+                print(f"   [EMAIL] Notification sent to finder: {finder_email}")
+        
+        except Exception as email_error:
+            print(f"   [WARNING] Could not send email notification: {email_error}")
+        
         conn.close()
         
-        print(f"✅ Claim answers submitted: Attempt ID {attempt_id}")
+        print(f"Claim answers submitted: Attempt ID {attempt_id}")
         print(f"   Claimer: {claimer_name} ({claimer_email})")
         print(f"   Item: {item_details['title']} (ID: {found_item_id})")
         print(f"   Finder notified: {item_details['finder_email']}")
@@ -3198,13 +3324,189 @@ def finalize_claim():
             VALUES (?, ?, ?, ?, ?, ?, 0, ?)
         ''', (owner_email, 'RETURN_COMPLETED', found_item_id, 'found', f"Successful Return: {item_data['title']}", owner_notification, notification_time))
         
+        # Get conversation ID for this finder-claimer pair
+        cursor.execute('''
+            SELECT u1.id as finder_id, u2.id as claimer_id, u1.phone_number as finder_phone, u2.phone_number as claimer_phone
+            FROM users u1, users u2
+            WHERE u1.email = ? AND u2.email = ?
+        ''', (owner_email, user_email))
+        
+        user_ids = cursor.fetchone()
+        conversation_id = None
+        
+        if user_ids:
+            # Check if conversation exists
+            cursor.execute('''
+                SELECT secure_id FROM conversations 
+                WHERE ((user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?))
+                AND item_id = ?
+            ''', (user_ids['finder_id'], user_ids['claimer_id'], user_ids['claimer_id'], user_ids['finder_id'], found_item_id))
+            
+            conv = cursor.fetchone()
+            if conv:
+                conversation_id = conv['secure_id']
+        
         conn.commit()
         conn.close()
+        
+        # Send email notifications to both finder and claimer
+        try:
+            from email_verification_service import send_email
+            
+            # Email to Finder (Owner)
+            finder_subject = f"✅ Item Successfully Returned - {item_data['title']}"
+            finder_body = f"""Hello {item_data['owner_name'] or 'Finder'},
+
+Congratulations! You have successfully returned the item to its rightful owner.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ITEM DETAILS:
+Title: {item_data['title']}
+Category: {item_data['category_name'] or 'Unknown'}
+Location Found: {item_data['location_name'] or 'Unknown'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLAIMER CONTACT INFORMATION:
+Name: {item_data['claimer_name'] or 'Unknown'}
+Email: {user_email}
+Phone: {user_ids['claimer_phone'] if user_ids and user_ids['claimer_phone'] else 'Not provided'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SECURE VERIFICATION:
+Conversation ID: {conversation_id or 'N/A'}
+6-Digit Security Code: {verification_code}
+
+Share this security code with the claimer to verify the exchange.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This successful return has been permanently recorded in our system.
+Thank you for being a responsible member of the TraceBack community!
+
+Best regards,
+TraceBack Team
+Kent State University
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated notification. Please do not reply to this email.
+"""
+            
+            # Email to Claimer (Successful claimer)
+            claimer_subject = f"🎉 Your Claim Was Successful - {item_data['title']}"
+            claimer_body = f"""Hello {item_data['claimer_name'] or 'Claimer'},
+
+Great news! Your claim has been finalized and the finder has chosen to give you this item.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ITEM DETAILS:
+Title: {item_data['title']}
+Category: {item_data['category_name'] or 'Unknown'}
+Location Found: {item_data['location_name'] or 'Unknown'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FINDER CONTACT INFORMATION:
+Name: {item_data['owner_name'] or 'Unknown'}
+Email: {owner_email}
+Phone: {user_ids['finder_phone'] if user_ids and user_ids['finder_phone'] else 'Not provided'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SECURE VERIFICATION:
+Conversation ID: {conversation_id or 'N/A'}
+6-Digit Security Code: {verification_code}
+
+Please verify this security code with the finder when picking up your item.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Please coordinate with the finder to arrange item pickup.
+This successful claim has been permanently recorded in our system.
+
+Best regards,
+TraceBack Team
+Kent State University
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated notification. Please do not reply to this email.
+"""
+            
+            # Send emails
+            if owner_email:
+                send_email(owner_email, finder_subject, finder_body)
+                print(f"   [EMAIL] Finalization notification sent to finder: {owner_email}")
+            
+            if user_email:
+                send_email(user_email, claimer_subject, claimer_body)
+                print(f"   [EMAIL] Finalization notification sent to claimer: {user_email}")
+            
+            # Send emails to all unsuccessful claimers
+            cursor = sqlite3.connect(DB_PATH).cursor()
+            cursor.execute('''
+                SELECT DISTINCT ca.user_email, u.full_name
+                FROM claim_attempts ca
+                LEFT JOIN users u ON u.email = ca.user_email
+                WHERE ca.found_item_id = ? AND ca.user_email != ?
+            ''', (found_item_id, user_email))
+            
+            unsuccessful_claimers = cursor.fetchall()
+            cursor.close()
+            
+            for claimer in unsuccessful_claimers:
+                unsuccessful_email = claimer[0]
+                unsuccessful_name = claimer[1] or 'Claimer'
+                
+                # Skip encrypted anonymous emails
+                if unsuccessful_email and not unsuccessful_email.startswith('anon_'):
+                    unsuccessful_subject = f"Update: Item Claimed by Another User - {item_data['title']}"
+                    unsuccessful_body = f"""Hello {unsuccessful_name},
+
+Thank you for your interest in claiming the item posted on TraceBack.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ITEM DETAILS:
+Title: {item_data['title']}
+Category: {item_data['category_name'] or 'Unknown'}
+Location Found: {item_data['location_name'] or 'Unknown'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLAIM STATUS: Item Given to Another Claimer
+
+Unfortunately, the finder has chosen to give this item to another claimer who successfully verified ownership. The item has been returned and the post has been removed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+We appreciate your participation and encourage you to continue checking TraceBack for other lost items.
+
+Best regards,
+TraceBack Team
+Kent State University
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated notification. Please do not reply to this email.
+"""
+                    
+                    try:
+                        send_email(unsuccessful_email, unsuccessful_subject, unsuccessful_body)
+                        print(f"   [EMAIL] Unsuccessful claim notification sent to: {unsuccessful_email}")
+                    except Exception as e:
+                        print(f"   [WARNING] Could not send email to {unsuccessful_email}: {e}")
+        
+        except Exception as email_error:
+            print(f"   [WARNING] Could not send finalization email notifications: {email_error}")
         
         return jsonify({
             'success': True,
             'message': 'Claim finalized successfully. Item returned and post deleted.',
-            'return_id': return_id
+            'return_id': return_id,
+            'verification_code': verification_code,
+            'conversation_id': conversation_id
         }), 200
         
     except Exception as e:
@@ -3786,12 +4088,33 @@ def get_messages():
     """Get messages for a conversation"""
     try:
         conversation_id = request.args.get('conversation_id')
+        requesting_user_id = request.args.get('user_id')  # Add user ID for validation
+        
         if not conversation_id:
             return jsonify({'error': 'Conversation ID required'}), 400
         
+        if not requesting_user_id:
+            return jsonify({'error': 'User ID required'}), 400
+        
+        # Create database connection first
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+        
+        # Validate user is part of this conversation using secure ID
+        cursor.execute('''
+            SELECT user_id_1, user_id_2 FROM conversations WHERE secure_id = ?
+        ''', (conversation_id,))
+        conv = cursor.fetchone()
+        
+        if not conv:
+            conn.close()
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        allowed_user_ids = [conv['user_id_1'], conv['user_id_2']]
+        if int(requesting_user_id) not in allowed_user_ids:
+            conn.close()
+            return jsonify({'error': 'Unauthorized: You are not part of this conversation'}), 403
         
         cursor.execute('''
             SELECT 
@@ -3824,6 +4147,130 @@ def get_messages():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/create-conversation', methods=['POST'])
+def create_conversation():
+    """Create a secure conversation ID"""
+    try:
+        data = request.get_json()
+        user_id_1 = data.get('user_id_1')
+        user_id_2 = data.get('user_id_2')
+        item_id = data.get('item_id')
+        requester_id = data.get('requester_id')
+        
+        # Validate requester is one of the participants
+        if requester_id not in [user_id_1, user_id_2]:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Create a much stronger secure ID using multiple hash layers with salt
+        import hashlib
+        import secrets
+        import time
+        
+        # Use timestamp and random salt for additional entropy
+        conversation_key = f"{user_id_1}_{user_id_2}_{item_id}"
+        
+        # Check if conversation already exists
+        conn_check = sqlite3.connect(DB_PATH)
+        cursor_check = conn_check.cursor()
+        cursor_check.execute('''
+            SELECT secure_id FROM conversations 
+            WHERE user_id_1 = ? AND user_id_2 = ? AND item_id = ?
+        ''', (user_id_1, user_id_2, item_id))
+        existing = cursor_check.fetchone()
+        conn_check.close()
+        
+        if existing:
+            # Return existing secure ID
+            secure_id = existing[0]
+        else:
+            # Generate new strong secure ID
+            # Use PBKDF2 with random salt for cryptographic strength
+            salt = secrets.token_hex(16)
+            timestamp = str(int(time.time() * 1000))
+            combined = f"{conversation_key}_{salt}_{timestamp}"
+            
+            # Apply PBKDF2 with 100,000 iterations
+            import hashlib
+            secure_bytes = hashlib.pbkdf2_hmac('sha256', combined.encode(), salt.encode(), 100000)
+            secure_id = secure_bytes.hex()[:32]  # 32 character secure ID
+        
+        # Store the mapping in database
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Create conversations table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS conversations (
+                secure_id TEXT PRIMARY KEY,
+                user_id_1 INTEGER NOT NULL,
+                user_id_2 INTEGER NOT NULL,
+                item_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        ''')
+        
+        # Insert new conversation
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('''
+            INSERT INTO conversations (secure_id, user_id_1, user_id_2, item_id, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (secure_id, user_id_1, user_id_2, item_id, current_time))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'conversation_id': secure_id}), 200
+        
+    except Exception as e:
+        print(f"Error creating conversation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/get-conversation-details', methods=['GET'])
+def get_conversation_details():
+    """Get conversation details from secure ID"""
+    try:
+        secure_id = request.args.get('conversation_id')
+        requester_id = request.args.get('user_id')
+        
+        if not secure_id or not requester_id:
+            return jsonify({'error': 'Missing parameters'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT user_id_1, user_id_2, item_id
+            FROM conversations
+            WHERE secure_id = ?
+        ''', (secure_id,))
+        
+        conv = cursor.fetchone()
+        conn.close()
+        
+        if not conv:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        # Validate requester is part of conversation
+        if int(requester_id) not in [conv['user_id_1'], conv['user_id_2']]:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Determine other user
+        other_user_id = conv['user_id_2'] if int(requester_id) == conv['user_id_1'] else conv['user_id_1']
+        
+        return jsonify({
+            'user_id_1': conv['user_id_1'],
+            'user_id_2': conv['user_id_2'],
+            'item_id': conv['item_id'],
+            'other_user_id': other_user_id
+        }), 200
+        
+    except Exception as e:
+        print(f"Error getting conversation details: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/messages', methods=['POST'])
 def send_message():
     """Send a new message"""
@@ -3844,6 +4291,22 @@ def send_message():
             user_ids = sorted([str(data['sender_id']), str(data['receiver_id'])])
             item_ref = f"_{data.get('item_id', 'general')}" if data.get('item_id') else ''
             conversation_id = f"conv_{user_ids[0]}_{user_ids[1]}{item_ref}"
+        
+        # Validate sender is part of this conversation using secure ID
+        conn_check = sqlite3.connect(DB_PATH)
+        cursor_check = conn_check.cursor()
+        cursor_check.execute('''
+            SELECT user_id_1, user_id_2 FROM conversations WHERE secure_id = ?
+        ''', (conversation_id,))
+        conv_check = cursor_check.fetchone()
+        conn_check.close()
+        
+        if not conv_check:
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        allowed_user_ids = [conv_check[0], conv_check[1]]
+        if int(data['sender_id']) not in allowed_user_ids:
+            return jsonify({'error': 'Unauthorized: You cannot send messages in this conversation'}), 403
         
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -3945,6 +4408,37 @@ def api_get_user_by_email():
         
     except Exception as e:
         print(f"❌ Error fetching user by email: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/user/<int:user_id>', methods=['GET'])
+def api_get_user_by_id(user_id):
+    """Get user details by ID (API endpoint)"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Return only public fields for API
+        return jsonify({
+            'user': {
+                'id': user['id'],
+                'email': user['email'],
+                'full_name': user['full_name'],
+                'first_name': user['first_name'],
+                'last_name': user['last_name']
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching user by ID: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -4797,19 +5291,41 @@ def create_contact_request():
             try:
                 from email_verification_service import send_email
                 
-                subject = f"Connection Request from {requester_name}"
-                body = f"""
-Hello {target_user_name},
+                subject = f"🤝 New Connection Request from {requester_name} - TraceBack"
+                body = f"""Hello {target_user_name},
 
-{requester_name} wants to connect with you on TraceBack.
+You have a new connection request on TraceBack!
 
-Visit your Connections page to accept or decline this request.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👤 FROM: {requester_name}
+
+{requester_name} wants to connect with you on TraceBack. Connecting allows you to:
+  • Share contact information with each other
+  • Network with people who have similar interests
+  • Build your campus community connections
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 RESPOND TO THIS REQUEST:
+
+Log in to TraceBack and navigate to:
+Dashboard → Connections → Pending Requests
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📌 Note: This connection request will remain pending until you respond.
 
 Best regards,
 TraceBack Team
+Kent State University
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated notification. Please do not reply to this email.
                 """
                 
                 send_email(target_email, subject, body)
+                print(f"✅ Connection request email sent to {target_email}")
             except Exception as e:
                 print(f"⚠️ Could not send email notification: {e}")
         
@@ -5040,16 +5556,35 @@ def accept_connection(connection_id):
             try:
                 from email_verification_service import send_email
                 
-                subject = "Connection Accepted"
-                body = f"""
-Hello {requester['full_name']},
+                subject = f"✅ {accepter['full_name'] if accepter else 'Someone'} Accepted Your Connection Request - TraceBack"
+                body = f"""Hello {requester['full_name']},
 
-{accepter['full_name'] if accepter else 'Someone'} has accepted your connection request!
+Great news! Your connection request has been accepted!
 
-You can now see each other's contact information in your Connections page.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎉 {accepter['full_name'] if accepter else 'Someone'} has accepted your connection request!
+
+You are now connected and can:
+  • View each other's contact information
+  • See shared interests and programs
+  • Reach out to each other using the shared contact details
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔗 VIEW YOUR CONNECTION:
+
+Log in to TraceBack and navigate to:
+Dashboard → Connections → My Connections
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Best regards,
 TraceBack Team
+Kent State University
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated notification. Please do not reply to this email.
                 """
                 
                 send_email(requester['email'], subject, body)
