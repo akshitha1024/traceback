@@ -163,10 +163,10 @@ export default function ClaimAttemptsPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-xl font-bold text-gray-900">
-                                {attempt.user_name || 'Unknown User'}
+                              <h3 className="text-base font-bold text-gray-900 break-all">
+                                {attempt.conversation_id ? `Claimer #${attempt.conversation_id.substring(0, 12)}` : 'Anonymous Claimer'}
                               </h3>
-                              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                              <span className={`px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0 ${
                                 attempt.success 
                                   ? 'bg-green-600 text-white' 
                                   : 'bg-red-600 text-white'
@@ -174,12 +174,20 @@ export default function ClaimAttemptsPage() {
                                 {attempt.success ? '✓ Verified' : '✗ Failed'}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">
-                              <strong>Email:</strong> {attempt.user_email}
-                            </p>
-                            {attempt.phone_number && (
-                              <p className="text-sm text-gray-600">
-                                <strong>Phone:</strong> {attempt.phone_number}
+                            {(attempt.success || attempt.marked_as_potential_at) ? (
+                              <>
+                                <p className="text-sm text-gray-600">
+                                  <strong>Email:</strong> {attempt.user_email}
+                                </p>
+                                {attempt.phone_number && (
+                                  <p className="text-sm text-gray-600">
+                                    <strong>Phone:</strong> {attempt.phone_number}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">
+                                Contact info will be revealed after you mark as potential or accept claim
                               </p>
                             )}
                             <p className="text-xs text-gray-500 mt-1">

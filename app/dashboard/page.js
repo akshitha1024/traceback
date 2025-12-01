@@ -435,19 +435,25 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
-                          {attempt.user_name.charAt(0)}
+                        <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                          {attempt.conversation_id ? attempt.conversation_id.substring(0, 1).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <h5 className="font-semibold text-gray-900">{attempt.user_name}</h5>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            <a href={`mailto:${attempt.user_email}`} className="hover:text-blue-600 underline">
-                              {attempt.user_email}
-                            </a>
-                          </div>
+                          <h5 className="font-semibold text-gray-900 break-all text-sm">
+                            {attempt.conversation_id ? `Claimer #${attempt.conversation_id.substring(0, 12)}` : 'Anonymous Claimer'}
+                          </h5>
+                          {(attempt.success === 1 || attempt.marked_as_potential_at) ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              <a href={`mailto:${attempt.user_email}`} className="hover:text-blue-600 underline">
+                                {attempt.user_email}
+                              </a>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-500 italic">Contact info revealed when verified</p>
+                          )}
                         </div>
                       </div>
                       

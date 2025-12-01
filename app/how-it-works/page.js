@@ -9,7 +9,8 @@ export default function HowItWorks() {
 
   useEffect(() => {
     const user = localStorage.getItem('user');
-    setIsLoggedIn(!!user);
+    const token = localStorage.getItem('sessionToken');
+    setIsLoggedIn(!!(user && token));
   }, []);
 
   return (
@@ -25,9 +26,15 @@ export default function HowItWorks() {
             className="h-14 w-auto sm:h-18 cursor-pointer"
           />
         </Link>
-        <Link href="/login" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
-          Login/Sign Up
-        </Link>
+        {isLoggedIn ? (
+          <Link href="/dashboard" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+            Dashboard
+          </Link>
+        ) : (
+          <Link href="/login?redirect=/dashboard" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+            Login/Sign Up
+          </Link>
+        )}
       </header>
 
       {/* Main Content */}

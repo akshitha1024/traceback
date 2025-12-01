@@ -2,13 +2,22 @@
 import Link from "next/link";
 import Image from "next/image";
 import Footer from "@/components/Footer";
+import { useEffect, useState } from "react";
 
 export default function TermsOfService() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    const token = localStorage.getItem('sessionToken');
+    setIsLoggedIn(!!(user && token));
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-6 lg:px-12 bg-white/95 backdrop-blur-sm shadow-sm sticky top-0">
-        <Link href="/">
+        <Link href={isLoggedIn ? "/dashboard" : "/"}>
           <Image 
             src="/logo.png" 
             alt="TraceBack Logo" 
@@ -17,9 +26,15 @@ export default function TermsOfService() {
             className="h-14 w-auto sm:h-18 cursor-pointer"
           />
         </Link>
-        <Link href="/login" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
-          Login/Sign Up
-        </Link>
+        {isLoggedIn ? (
+          <Link href="/dashboard" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+            Dashboard
+          </Link>
+        ) : (
+          <Link href="/login?redirect=/dashboard" className="bg-gray-900 hover:bg-black text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl">
+            Login/Sign Up
+          </Link>
+        )}
       </header>
 
       {/* Main Content */}
