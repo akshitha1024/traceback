@@ -1,5 +1,6 @@
-
 "use client";
+
+
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -394,7 +395,7 @@ export default function Dashboard() {
                     </h3>
                   </div>
                   <p className="text-sm text-gray-700 mb-2">
-                    <strong>Found on:</strong> {new Date(foundItem.date_found).toLocaleDateString()}{foundItem.time_found && ` at ${convertTo12Hour(foundItem.time_found)}`} at {foundItem.location}
+                    <strong>Found on:</strong> {new Date(foundItem.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} at {foundItem.location}
                   </p>
                   {foundItem.description && (
                     <p className="text-sm text-gray-600 line-clamp-2">
@@ -961,7 +962,7 @@ export default function Dashboard() {
                             </div>
                             <h3 className="text-lg font-bold text-gray-900 mb-1">{item.title}</h3>
                             <p className="text-xs text-gray-600">
-                              {new Date(item.date_found).toLocaleDateString()}{item.time_found && ` at ${convertTo12Hour(item.time_found)}`} • {item.location_name || item.location}
+                              {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} • {item.location_name || item.location}
                             </p>
                           </div>
                           <div className="p-4">

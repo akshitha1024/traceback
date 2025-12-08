@@ -1,4 +1,5 @@
-'use client';
+"use client";
+
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -287,31 +288,21 @@ export default function ClaimedItemsPage() {
                       </div>
 
                       {/* Found At */}
-                      {item.date_found && (
+                      {item.created_at && (
                         <div className="flex items-center text-sm text-gray-700">
                           <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           <span className="font-medium">Found At:</span>
                           <span className="ml-1">
-                            {(() => {
-                              try {
-                                const [year, month, day] = item.date_found.split('-');
-                                const date = new Date(year, month - 1, day);
-                                const dateStr = date.toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit'
-                                });
-                                
-                                if (item.time_found) {
-                                  return `${dateStr} at ${convertTo12Hour(item.time_found)}`;
-                                }
-                                return dateStr;
-                              } catch (e) {
-                                return item.date_found;
-                              }
-                            })()}
+                            {new Date(item.created_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
                           </span>
                         </div>
                       )}

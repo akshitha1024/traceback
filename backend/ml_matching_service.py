@@ -242,22 +242,22 @@ class MLMatchingService:
         if has_both_images:
             # Use full formula with image similarity
             match_score = (
-                0.40 * desc_sim +
-                0.25 * img_sim +
-                0.15 * loc_sim +
-                0.10 * cat_sim +
+                0.35 * desc_sim +
+                0.35 * img_sim +
+                0.13 * loc_sim +
+                0.07 * cat_sim +
                 0.05 * color_sim +
                 0.05 * date_sim
             )
         else:
             # Redistribute weights when no image comparison is possible
-            # Description(53.3%), Location(20%), Category(13.3%), Color(6.7%), Date(6.7%)
+            # Description(50%), Location(18.6%), Category(10%), Color(7.1%), Date(7.1%)
             match_score = (
-                0.533 * desc_sim +
-                0.200 * loc_sim +
-                0.133 * cat_sim +
-                0.067 * color_sim +
-                0.067 * date_sim
+                0.500 * desc_sim +
+                0.257 * loc_sim +
+                0.100 * cat_sim +
+                0.071 * color_sim +
+                0.072 * date_sim
             )
         
         return {
@@ -271,13 +271,13 @@ class MLMatchingService:
             'has_image_comparison': has_both_images
         }
     
-    def find_matches_for_lost_item(self, lost_item_id, min_score=0.6, top_k=10):
+    def find_matches_for_lost_item(self, lost_item_id, min_score=0.8, top_k=10):
         """
         Find matching found items for a given lost item
         
         Args:
             lost_item_id: ID of the lost item
-            min_score: Minimum match score threshold (default 0.6 = 60%)
+            min_score: Minimum match score threshold (default 0.8 = 80%)
             top_k: Number of top matches to return (default 10)
             
         Returns:
@@ -333,13 +333,13 @@ class MLMatchingService:
         # Return top K matches
         return matches[:top_k]
     
-    def find_matches_for_found_item(self, found_item_id, min_score=0.6, top_k=10):
+    def find_matches_for_found_item(self, found_item_id, min_score=0.8, top_k=10):
         """
         Find matching lost items for a given found item
         
         Args:
             found_item_id: ID of the found item
-            min_score: Minimum match score threshold (default 0.6 = 60%)
+            min_score: Minimum match score threshold (default 0.8 = 80%)
             top_k: Number of top matches to return (default 10)
             
         Returns:
@@ -394,12 +394,12 @@ class MLMatchingService:
         # Return top K matches
         return matches[:top_k]
     
-    def batch_match_all_items(self, min_score=0.6):
+    def batch_match_all_items(self, min_score=0.8):
         """
         Find all potential matches between lost and found items
         
         Args:
-            min_score: Minimum match score threshold (default 0.6 = 60%)
+            min_score: Minimum match score threshold (default 0.8 = 80%)
             
         Returns:
             List of all matches above threshold

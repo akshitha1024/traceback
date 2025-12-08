@@ -660,7 +660,7 @@ class EmailNotificationService:
         </div>
         
         <div class="urgent">
-            <strong>⚠️ Action Required:</strong> Please review all claim attempts and decide who should receive the item. You can view all claimers' answers to your security questions in your dashboard.
+            <strong>⚠️ It's Time to Make a Decision!</strong> The 3-day competition window has ended. You now need to review all claim attempts and choose the rightful owner for this item.
         </div>
         
         <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
@@ -669,13 +669,13 @@ class EmailNotificationService:
         <ol style="color: #6b7280; font-size: 14px;">
             <li>Log in to your TraceBack account</li>
             <li>Go to your Found Items dashboard</li>
-            <li>Review all claimers' answers to your security questions</li>
-            <li>Select the rightful owner based on their answers</li>
-            <li>Arrange pickup or return of the item</li>
+            <li>Review all {claimer_count} claimer(s)' answers to your security questions</li>
+            <li>Select the person who provided the most accurate answers</li>
+            <li>Finalize the claim and arrange item return</li>
         </ol>
         
         <p style="margin-top: 20px; color: #6b7280; font-size: 14px;">
-            <strong>Remember:</strong> Once you verify the correct owner, the item will be marked as successfully returned!
+            <strong>Remember:</strong> Take your time to review each claim carefully. Choose the person whose answers best match your item. Once you finalize, the item will be marked as successfully returned!
         </p>
     </div>
     

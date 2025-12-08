@@ -1,5 +1,7 @@
-
 "use client";
+
+
+
 import Protected from "@/components/Protected";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -318,7 +320,8 @@ export default function ReportPage() {
 
             <div className="grid grid-cols-1 gap-3">
               <label className="block text-sm mb-2">
-                Color* (Select one)
+                Color* (Select prominent color)
+                <span className="text-xs text-gray-500 block mt-1">If there are multiple prominent colors, select "Multicolor"</span>
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                 {[
@@ -502,16 +505,16 @@ export default function ReportPage() {
                     </thead>
                     <tbody>
                       {[
-                        ['Electronics','Phone, Charger, Laptop, Headphones etc...'],
-                        ['Jewelry','Ring, Necklace, Bracelet, Watch etc...'],
-                        ['Clothing','Jacket, Hoodie, Sweater etc...'],
-                        ['Bags','Backpack, Tote, Purse etc...'],
-                        ['Keys','Keyring, Car Key, Dorm Key etc...'],
-                        ['Books','Textbook, Notebook, Planner etc...'],
-                        ['Documents','ID, Passport, Certificates etc...'],
-                        ['Accessories','Sunglasses, Hat, Belt etc...'],
-                        ['Toys','Plush, Puzzle, Game etc...'],
-                        ['Kitchen','Utensils, Water Bottle, Mug etc...']
+                        ['Electronics','Phone, Laptop, Tablet, AirPods, Charger, Power Bank, etc…'],
+                        ['Jewelry','Ring, Necklace, Bracelet, Earrings, Smartwatch, etc…'],
+                        ['Clothing','Jacket, Hoodie, Sweater, Scarf, Gloves, etc…'],
+                        ['Bags','Backpack, Tote Bag, Crossbody Bag, Laptop Bag, etc…'],
+                        ['Keys','Dorm Key, Car Key, Key Fob, Keychain, etc…'],
+                        ['Books','Textbook, Notebook, Planner, Lab Manual, etc…'],
+                        ['Documents','ID Card, Passport, Wallet, Parking Pass, Certificates, etc…'],
+                        ['Accessories','Sunglasses, Hat, Belt, Wallet, Hair Accessories, etc…'],
+                        ['Toys','Plush Toy, Puzzle Toy, Small Games, Action Figures, etc…'],
+                        ['Kitchen','Water Bottle, Travel Mug, Lunch Box, Utensils, etc…']
                       ].map(([cat, examples]) => (
                         <tr key={cat} className="border-t">
                           <td className="py-2 font-medium">{cat}</td>

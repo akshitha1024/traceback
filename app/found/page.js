@@ -1,5 +1,7 @@
-
 "use client";
+
+
+
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import Protected from "@/components/Protected";
@@ -27,7 +29,7 @@ export default function FoundPage() {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const userEmail = user.email || '';
       
-      // Fetch found items - will only show items >3 days old OR items with >70% match to user's lost items
+      // Fetch found items - will only show items >3 days old OR items with >80% match to user's lost items
       const response = await fetch(`http://localhost:5000/api/found-items?limit=25&page=${page}&user_email=${encodeURIComponent(userEmail)}`);
       
       if (!response.ok) {
@@ -194,7 +196,7 @@ export default function FoundPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-blue-900 mb-1">3-Day Privacy Period</h3>
                   <p className="text-sm text-blue-800">
-                    <strong>New found items are private for the first 3 days</strong> and only visible to users who reported matching lost items (&gt;70% similarity). After 3 days, items become public showing limited details: name, category, location, and date. This gives priority to people who actually lost items while protecting privacy and preventing false claims.
+                    <strong>New found items are private for the first 3 days</strong> and only visible to users who reported matching lost items (&gt;80% similarity). After 3 days, items become public showing limited details: name, category, location, and date. This gives priority to people who actually lost items while protecting privacy and preventing false claims.
                   </p>
                   <p className="text-xs text-blue-700 mt-2 italic">
                     💡 Tip: If you lost something, report it on your dashboard to get matched with found items during the private period!
@@ -223,7 +225,7 @@ export default function FoundPage() {
                   ...item,
                   type: 'FOUND',
                   location: item.location_name || item.location,
-                  date: item.date_found || item.created_at,
+                  date: item.created_at,
                   category: item.category_name || item.category
                 }}
               />

@@ -1,4 +1,8 @@
 "use client";
+
+
+
+
 import Link from "next/link";
 import Image from "next/image";
 import Footer from "@/components/Footer";
@@ -48,13 +52,13 @@ export default function About() {
         {/* Description */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 md:p-12 mb-16">
           <p className="text-lg text-gray-700 leading-relaxed mb-6">
-            <strong>TraceBack</strong> is an intelligent Lost & Found platform built for campus communities. 
-            It uses machine learning to automatically connect lost and found reports, helping students recover 
-            their belongings faster and with greater accuracy.
+            <strong>TraceBack</strong> is an intelligent Lost & Found platform built for the <strong>Kent State University – Kent Campus community. </strong>
+            It uses machine learning to connect lost and found reports more accurately, helping students recover 
+            their belongings quickly and with less effort.
           </p>
           <p className="text-lg text-gray-700 leading-relaxed">
-            Designed with privacy, trust, and student safety in mind, TraceBack creates a seamless way for 
-            the campus community to return items to their rightful owners.
+            Designed with privacy, trust, and student safety in mind, TraceBack provides a seamless, secure way for 
+            the Kent Campus community to return items to their rightful owners.
           </p>
         </div>
 

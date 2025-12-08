@@ -37,6 +37,69 @@ def parse_et_datetime(dt_str):
     dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
     return ET.localize(dt)
 
+def send_last_chance_notification(item_data, cursor):
+    """
+    Send 'last 3-day chance' notification to ALL users (except finder) when item moves to claimed status
+    """
+    try:
+        from email_verification_service import send_email
+        
+        item_title = item_data[0]
+        finder_email = item_data[1]
+        category = item_data[2] or 'Unknown'
+        location = item_data[3] or 'Unknown'
+        
+        # Get ALL users except the finder
+        cursor.execute("""
+            SELECT email, full_name 
+            FROM users 
+            WHERE email != ? 
+            AND email IS NOT NULL
+        """, (finder_email,))
+        
+        all_users = cursor.fetchall()
+        
+        for user in all_users:
+            subject = f"⚠️ Last 3-Day Chance: {item_title} - About to be Claimed!"
+            body = f"""
+Dear {user[1] or 'User'},
+
+<strong>URGENT: Last chance to claim this item!</strong>
+
+An item is about to be claimed by someone. You have only 3 days left to submit your claim if this is your item.
+
+<strong>Item Details:</strong>
+- Title: {item_title}
+- Category: {category}
+- Location: {location}
+
+<strong>What's happening:</strong>
+The finder has identified a potential owner and is reviewing their claim. If you believe this is your item, you must act NOW!
+
+<strong>What to do immediately:</strong>
+1. Visit TraceBack and check the claimed items section (last 3-day chance)
+2. Submit your claim with strong proof of ownership
+3. Answer all security questions accurately
+
+<strong>Time remaining: 3 DAYS</strong>
+
+<strong>Important:</strong> This item is no longer in the found items page. Please look in the claimed items section to view and claim this item.
+
+Don't miss this chance!
+
+Best regards,
+The TraceBack Team
+            """
+            
+            try:
+                send_email(user[0], subject, body)
+                print(f"[{get_et_now_str()}] 📧 Sent last chance notification to {user[0]}")
+            except Exception as e:
+                print(f"[{get_et_now_str()}] ❌ Failed to send last chance email to {user[0]}: {e}")
+                
+    except Exception as e:
+        print(f"[{get_et_now_str()}] [ERROR] Failed to send last chance notifications: {e}")
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-secret-key-2025-comprehensive'
 CORS(app)
@@ -338,7 +401,7 @@ def get_lost_items():
                         match_rows = conn2.execute("""
                             SELECT m.match_score, m.score_breakdown,
                                    f.rowid as id, f.title, f.description, f.color, f.size,
-                                   f.date_found, f.time_found, f.image_filename,
+                                   f.created_at, f.image_filename,
                                    f.finder_name, f.finder_email, f.finder_phone,
                                    f.current_location, f.is_claimed, f.status,
                                    c.name as category_name,
@@ -347,7 +410,7 @@ def get_lost_items():
                             JOIN found_items f ON m.found_item_id = f.rowid
                             LEFT JOIN categories c ON f.category_id = c.id
                             LEFT JOIN locations loc ON f.location_id = loc.id
-                            WHERE m.lost_item_id = ? AND m.match_score >= 0.7
+                            WHERE m.lost_item_id = ? AND m.match_score >= 0.8
                             ORDER BY m.match_score DESC
                             LIMIT 5
                         """, (item['id'],)).fetchall()
@@ -380,7 +443,7 @@ def get_lost_items():
 def get_found_items():
     """
     Get found items with 3-day privacy period:
-    - First 3 days: Only visible to users with >70% matching lost items
+    - First 3 days: Only visible to users with >80% matching lost items
     - After 3 days: Public to everyone (name, category, location, date only)
     """
     conn = get_db()
@@ -411,14 +474,14 @@ def get_found_items():
         
         params = []
         
-        # PRIVACY LOGIC: Only show items older than 3 days in public browse
-        # Items within 3 days are private and ONLY shown through:
-        # 1. ML matching (70%+ score) on user's dashboard
+        # PRIVACY LOGIC: Only show items where privacy has expired or is_private=0
+        # Items that are private (is_private=1) are ONLY shown through:
+        # 1. ML matching (80%+ score) on user's dashboard
         # 2. Moderators viewing abuse reports
         # This check is ONLY for public browse, not for dashboard or admin views
         if not include_private:  # Public browse view
-            # Use localtime to match the timezone of created_at timestamps
-            where_conditions.append("datetime(f.created_at) <= datetime('now', 'localtime', '-3 days')")
+            # Check is_private flag - items are made public by the hourly scheduler when privacy_expires_at passes
+            where_conditions.append("f.is_private = 0")
         
         if category_id:
             where_conditions.append('f.category_id = ?')
@@ -455,7 +518,7 @@ def get_found_items():
         items_query = f'''
             SELECT f.rowid as id, f.category_id, f.location_id,
                    f.title, f.description, f.color, f.size,
-                   f.image_filename as image_url, f.date_found, f.time_found,
+                   f.image_filename as image_url, f.created_at,
                    f.current_location, f.finder_notes, f.is_private, f.privacy_expires_at,
                    f.is_claimed, f.created_at, f.privacy_expires,
                    f.finder_name, f.finder_email, f.finder_phone,
@@ -485,21 +548,7 @@ def get_found_items():
             
             item_dict['is_currently_private'] = False
             
-            # Format date_found to mm/dd/yyyy if it exists
-            if item_dict.get('date_found'):
-                try:
-                    date_obj = datetime.strptime(item_dict['date_found'], '%Y-%m-%d')
-                    item_dict['date_found'] = date_obj.strftime('%m/%d/%Y')
-                except:
-                    pass  # Keep original format if parsing fails
-            
-            # Format time_found to 12-hour format without seconds
-            if item_dict.get('time_found'):
-                try:
-                    time_obj = datetime.strptime(item_dict['time_found'], '%H:%M:%S')
-                    item_dict['time_found'] = time_obj.strftime('%I:%M %p')
-                except:
-                    pass  # Keep original format if parsing fails
+            # created_at is already in correct format (YYYY-MM-DD HH:MM:SS) - no formatting needed
             
             # For public view: show name, category, location, date/time, and contact email only
             # For ML matching (include_private=true): show everything
@@ -543,7 +592,7 @@ def get_found_items():
                             JOIN lost_items l ON m.lost_item_id = l.rowid
                             LEFT JOIN categories c ON l.category_id = c.id
                             LEFT JOIN locations loc ON l.location_id = loc.id
-                            WHERE m.found_item_id = ? AND m.match_score >= 0.7
+                            WHERE m.found_item_id = ? AND m.match_score >= 0.8
                             ORDER BY m.match_score DESC
                             LIMIT 5
                         """, (item['id'],)).fetchall()
@@ -621,14 +670,14 @@ def get_lost_item(item_id):
         if item_dict.get('image_url'):
             item_dict['image_url'] = f"http://localhost:5000/api/uploads/{item_dict['image_url']}"
         
-        # Get ML matches (>60% similarity)
+        # Get ML matches (>80% similarity)
         ml_service = get_ml_service()
         matches = []
         if ml_service:
             try:
                 matches = ml_service.find_matches_for_lost_item(
                     lost_item_id=item_id,
-                    min_score=0.6,  # 60% threshold
+                    min_score=0.8,  # 80% threshold
                     top_k=10
                 )
             except Exception as e:
@@ -708,24 +757,12 @@ def get_found_item(item_id):
         item_dict = dict(item)
         
         # Format dates
-        if item_dict.get('date_found'):
-            try:
-                date_obj = datetime.strptime(item_dict['date_found'], '%Y-%m-%d')
-                item_dict['date_found'] = date_obj.strftime('%m/%d/%Y')
-            except:
-                pass
-        
-        if item_dict.get('time_found'):
-            try:
-                time_obj = datetime.strptime(item_dict['time_found'], '%H:%M:%S')
-                item_dict['time_found'] = time_obj.strftime('%I:%M %p')
-            except:
-                pass
+        # created_at is already in correct format (YYYY-MM-DD HH:MM:SS)
         
         if item_dict.get('image_url'):
             item_dict['image_url'] = f"http://localhost:5000/api/uploads/{item_dict['image_url']}"
         
-        # Get ML matches from pre-computed ml_matches table (>70% threshold)
+        # Get ML matches from pre-computed ml_matches table (>80% threshold)
         conn2 = get_db()
         matches = []
         if conn2:
@@ -742,7 +779,7 @@ def get_found_item(item_id):
                     JOIN lost_items l ON m.lost_item_id = l.rowid
                     LEFT JOIN categories c ON l.category_id = c.id
                     LEFT JOIN locations loc ON l.location_id = loc.id
-                    WHERE m.found_item_id = ? AND m.match_score >= 0.7
+                    WHERE m.found_item_id = ? AND m.match_score >= 0.8
                     ORDER BY m.match_score DESC
                     LIMIT 10
                 """, (item_id,)).fetchall()
@@ -787,14 +824,14 @@ def get_security_questions(found_item_id):
         days_since_posted = (get_et_now() - item_created).days
         
         if days_since_posted < 3 and user_email:
-            # Item is private - check if user has a matching lost item (>70% match)
+            # Item is private - check if user has a matching lost item (>80% match)
             has_match = conn.execute("""
                 SELECT COUNT(*) as count
                 FROM ml_matches m
                 JOIN lost_items l ON m.lost_item_id = l.rowid
                 WHERE m.found_item_id = ? 
                 AND l.user_email = ?
-                AND m.match_score >= 0.7
+                AND m.match_score >= 0.8
             """, (found_item_id, user_email)).fetchone()
             
             if not has_match or has_match['count'] == 0:
@@ -993,7 +1030,7 @@ def verify_ownership():
                     'description': item_dict['description'],
                     'category': item_dict['category_name'],
                     'location_found': item_dict['location_name'],
-                    'date_found': item_dict['date_found'],
+                    'created_at': item_dict['created_at'],
                     'current_location': item_dict['current_location'],
                     'finder_notes': item_dict['finder_notes']
                 }
@@ -2051,18 +2088,16 @@ def report_found_item():
         privacy_expiry = get_et_now() + timedelta(days=3)
         privacy_expiry_str = privacy_expiry.strftime('%Y-%m-%d %H:%M:%S')
         
-        # Use current ET time for both date_found and created_at
+        # Use current ET time for created_at (single source of truth for when item was found)
         current_time_str = get_et_now_str()
-        current_date = get_et_now().strftime('%Y-%m-%d')
-        current_time_only = get_et_now().strftime('%H:%M:%S')
         
         cursor = conn.execute('''
             INSERT INTO found_items (
                 title, description, category_id, location_id, color, size,
-                date_found, time_found, finder_name, finder_email, finder_phone,
+                finder_name, finder_email, finder_phone,
                 finder_notes, current_location, is_private, privacy_expires_at,
                 image_filename, is_claimed, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?)
         ''', (
             data.get('title'),
             data.get('description'),
@@ -2070,8 +2105,6 @@ def report_found_item():
             location_id,
             data.get('color', ''),
             data.get('size', ''),
-            current_date,  # Use current date instead of user-provided
-            current_time_only,  # Use current time
             data.get('user_name'),  # Using user_name as finder_name
             data.get('user_email'),  # Using user_email as finder_email
             data.get('user_phone', ''),  # Using user_phone as finder_phone
@@ -2079,7 +2112,7 @@ def report_found_item():
             'Front Desk',  # Default current_location
             privacy_expiry_str,
             image_filename,
-            current_time_str  # Local ET time
+            current_time_str  # ET timestamp - single source of truth
         ))
         
         item_id = cursor.lastrowid
@@ -2814,8 +2847,7 @@ def get_my_claim_attempts():
                 COALESCE(fi.title, sr.item_title, sr_any.item_title) as item_title_display,
                 COALESCE(c.name, sr.item_category, sr_any.item_category) as category,
                 COALESCE(loc.name, sr.item_location, sr_any.item_location) as location,
-                COALESCE(fi.date_found, sr.date_found, sr_any.date_found) as date_found,
-                fi.time_found,
+                COALESCE(fi.created_at, sr.date_found, sr_any.date_found) as created_at,
                 fi.status as item_status,
                 fi.finder_email,
                 u.id as finder_id,
@@ -2851,6 +2883,7 @@ def get_my_claim_attempts():
                 # Calculate if contact info should still be visible (5 days from finalization)
                 try:
                     finalized_dt = datetime.strptime(attempt_dict['finalized_at'], '%Y-%m-%d %H:%M:%S')
+                    finalized_dt = ET.localize(finalized_dt)
                     days_since_finalized = (get_et_now() - finalized_dt).days
                     show_contact_info = days_since_finalized < 5
                     
@@ -2860,6 +2893,10 @@ def get_my_claim_attempts():
                     attempt_dict['show_contact_info'] = show_contact_info
                     attempt_dict['days_since_finalized'] = days_since_finalized
                     attempt_dict['contact_visible_days_remaining'] = max(0, 5 - days_since_finalized)
+                    
+                    # Use display title with fallback data from successful_returns
+                    if attempt_dict['item_title'] is None:
+                        attempt_dict['item_title'] = attempt_dict.get('item_title_display') or '[Item Finalized]'
                     
                     # Use data from successful_returns if available
                     if attempt_dict['sr_owner_email']:
@@ -2878,9 +2915,9 @@ def get_my_claim_attempts():
                 # Use display title with fallback data from successful_returns
                 attempt_dict['item_title'] = attempt_dict.get('item_title_display') or '[Item Finalized]'
                 attempt_dict['show_contact_info'] = False
-                # Fallback: Set date_found to attempted_at if still null
-                if not attempt_dict.get('date_found'):
-                    attempt_dict['date_found'] = attempt_dict['attempted_at'].split()[0] if attempt_dict.get('attempted_at') else get_et_now().strftime('%Y-%m-%d')
+                # Fallback: Set created_at to attempted_at if still null
+                if not attempt_dict.get('created_at'):
+                    attempt_dict['created_at'] = attempt_dict.get('attempted_at') or get_et_now_str()
                 # Fallback: Set default values if still null
                 if not attempt_dict.get('category'):
                     attempt_dict['category'] = 'Unknown'
@@ -3143,6 +3180,16 @@ def update_claim_attempt():
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
+        # Get found item details before updating
+        cursor.execute('''
+            SELECT fi.title, fi.finder_email, c.name as category, loc.name as location
+            FROM found_items fi
+            LEFT JOIN categories c ON fi.category_id = c.id
+            LEFT JOIN locations loc ON fi.location_id = loc.id
+            WHERE fi.rowid = ?
+        ''', (found_item_id,))
+        item_data = cursor.fetchone()
+        
         # Update the claim attempt
         # If marking as successful, store the timestamp in ET
         if success:
@@ -3152,6 +3199,10 @@ def update_claim_attempt():
                 SET success = ?, marked_as_potential_at = ?
                 WHERE found_item_id = ? AND user_email = ?
             ''', (1, marked_time, found_item_id, user_email))
+            
+            # Send "last 3-day chance" notification to ALL users except the finder
+            if item_data:
+                send_last_chance_notification(item_data, cursor)
         else:
             cursor.execute('''
                 UPDATE claim_attempts 
@@ -3304,6 +3355,9 @@ def finalize_claim():
                 # Fallback to attempted_at if marked_as_potential_at is not set (for old records)
                 marked_at = datetime.strptime(item_data['attempted_at'], '%Y-%m-%d %H:%M:%S')
             
+            # Localize naive datetime to ET timezone
+            marked_at = ET.localize(marked_at)
+            
             current_time = get_et_now()
             seconds_since_marked = (current_time - marked_at).total_seconds()
             days_since_marked = seconds_since_marked / 86400
@@ -3311,6 +3365,7 @@ def finalize_claim():
             # Fallback to created_at if parsing fails
             try:
                 marked_at = datetime.strptime(item_data['created_at'], '%Y-%m-%d %H:%M:%S')
+                marked_at = ET.localize(marked_at)
                 current_time = get_et_now()
                 seconds_since_marked = (current_time - marked_at).total_seconds()
                 days_since_marked = seconds_since_marked / 86400
@@ -3331,12 +3386,70 @@ def finalize_claim():
         days_waited = days_since_marked
         
         # For storing in the database, calculate days for historical accuracy
-        date_found = datetime.strptime(item_data['date_found'], '%Y-%m-%d')
-        days_since_found = (get_et_now() - date_found).days
+        created_dt = datetime.strptime(item_data['created_at'], '%Y-%m-%d %H:%M:%S')
+        created_dt = ET.localize(created_dt)
+        days_since_found = (get_et_now() - created_dt).days
         
         # Generate unique 6-digit verification code
         import random
+        import json
         verification_code = str(random.randint(100000, 999999))
+        
+        # Get all security questions with correct answers for this item
+        cursor.execute('''
+            SELECT question, answer, question_type, choice_a, choice_b, choice_c, choice_d, correct_choice
+            FROM security_questions
+            WHERE found_item_id = ?
+            ORDER BY id
+        ''', (found_item_id,))
+        
+        questions_data = []
+        for q in cursor.fetchall():
+            question_obj = {
+                'question': q['question'],
+                'correct_answer': q['answer'],
+                'type': q['question_type']
+            }
+            if q['question_type'] == 'multiple_choice':
+                question_obj['choices'] = {
+                    'A': q['choice_a'],
+                    'B': q['choice_b'],
+                    'C': q['choice_c'],
+                    'D': q['choice_d']
+                }
+                question_obj['correct_choice'] = q['correct_choice']
+            questions_data.append(question_obj)
+        
+        questions_json = json.dumps(questions_data)
+        
+        # Get ALL claim attempts for this item (not just the winner)
+        cursor.execute('''
+            SELECT 
+                ca.user_email,
+                ca.answers_json,
+                ca.attempted_at,
+                ca.success,
+                ca.marked_as_potential_at,
+                u.full_name
+            FROM claim_attempts ca
+            LEFT JOIN users u ON u.email = ca.user_email
+            WHERE ca.found_item_id = ?
+            ORDER BY ca.attempted_at
+        ''', (found_item_id,))
+        
+        all_responses = []
+        for attempt in cursor.fetchall():
+            response_obj = {
+                'email': attempt['user_email'],
+                'name': attempt['full_name'] or 'Unknown',
+                'answers': json.loads(attempt['answers_json']) if attempt['answers_json'] else [],
+                'attempted_at': attempt['attempted_at'],
+                'marked_as_potential': bool(attempt['success']),
+                'marked_at': attempt['marked_as_potential_at']
+            }
+            all_responses.append(response_obj)
+        
+        all_responses_json = json.dumps(all_responses)
         
         # Store successful return information permanently
         cursor.execute('''
@@ -3355,15 +3468,17 @@ def finalize_claim():
                 finalized_date,
                 answers_provided,
                 days_to_finalize,
-                verification_code
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), ?, ?, ?)
+                verification_code,
+                questions_json,
+                all_claim_responses
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE('now'), ?, ?, ?, ?, ?)
         ''', (
             found_item_id,
             item_data['title'],
             item_data['description'],
             item_data['category_name'] or 'Unknown',
             item_data['location_name'] or 'Unknown',
-            item_data['date_found'],
+            item_data['created_at'],
             owner_email,
             item_data['owner_name'] or 'Unknown',
             user_email,
@@ -3371,7 +3486,9 @@ def finalize_claim():
             claim_reason.strip(),
             item_data['answers_json'],
             days_since_found,
-            verification_code
+            verification_code,
+            questions_json,
+            all_responses_json
         ))
         
         return_id = cursor.lastrowid
@@ -3615,8 +3732,6 @@ def get_claimed_items():
                 COUNT(DISTINCT ca.user_email) as claimer_count,
                 f.category_id,
                 c.name as category_name,
-                f.date_found,
-                f.time_found,
                 f.location_id,
                 loc.name as location_name,
                 f.description,
@@ -3805,7 +3920,7 @@ def create_abuse_report():
             cursor.execute("""
                 SELECT 
                     fi.finder_name, fi.finder_email, u.phone_number, 'FOUND' as item_type,
-                    fi.title, fi.description, c.name as category, l.name as location, fi.date_found
+                    fi.title, fi.description, c.name as category, l.name as location, fi.created_at as date_found
                 FROM found_items fi
                 LEFT JOIN users u ON fi.finder_email = u.email
                 LEFT JOIN categories c ON fi.category_id = c.id
@@ -3937,7 +4052,7 @@ def get_abuse_reports():
                 COALESCE(fi.description, ar.target_item_description) as found_item_description,
                 COALESCE(fc.name, ar.target_item_category) as found_category,
                 COALESCE(fl.name, ar.target_item_location) as found_location,
-                COALESCE(fi.date_found, ar.target_item_date) as found_date,
+                COALESCE(fi.created_at, ar.target_item_date) as found_date,
                 COALESCE(u_found_owner.full_name, fi.finder_name, ar.target_user_name) as found_owner_name,
                 COALESCE(u_found_owner.email, fi.finder_email, ar.target_user_email) as found_owner_email,
                 COALESCE(u_found_owner.phone_number, ar.target_user_phone) as found_owner_phone,
@@ -4001,18 +4116,27 @@ def update_abuse_report(report_id):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
+        # Get admin name
+        cursor.execute('SELECT full_name FROM users WHERE email = ?', (admin_email,))
+        admin = cursor.fetchone()
+        admin_name = admin[0] if admin else 'Admin'
+        
         # Update report
         cursor.execute("""
             UPDATE abuse_reports 
             SET status = ?, 
                 moderator_notes = ?,
                 moderator_action = ?,
+                moderator_email = ?,
+                moderator_name = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE report_id = ?
         """, (
             data.get('status', 'REVIEWED'),
             data.get('moderator_notes', ''),
             data.get('moderator_action', ''),
+            admin_email,
+            admin_name,
             report_id
         ))
         
@@ -4079,16 +4203,26 @@ def delete_reported_content(report_id):
                 return jsonify({'error': 'User not found'}), 404
             print(f"✅ Deleted user {target_id}")
         
+        # Get admin name
+        admin_email = data.get('admin_email')
+        cursor.execute('SELECT full_name FROM users WHERE email = ?', (admin_email,))
+        admin = cursor.fetchone()
+        admin_name = admin[0] if admin else 'Admin'
+        
         # Update report status
         cursor.execute("""
             UPDATE abuse_reports 
             SET status = 'RESOLVED',
                 moderator_action = 'remove_content',
                 moderator_notes = ?,
+                moderator_email = ?,
+                moderator_name = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE report_id = ?
         """, (
             data.get('moderator_notes', 'Content removed by admin'),
+            admin_email,
+            admin_name,
             report_id
         ))
         
@@ -4129,7 +4263,7 @@ def get_conversations():
                 c.secure_id as conversation_id,
                 c.item_id,
                 'FOUND' as item_type,
-                COALESCE(fi.title, 'Item') as item_title,
+                COALESCE(fi.title, sr.item_title, 'Item') as item_title,
                 CASE 
                     WHEN c.user_id_1 = ? THEN c.user_id_2
                     ELSE c.user_id_1
@@ -4149,6 +4283,7 @@ def get_conversations():
                 COALESCE(unread.count, 0) as unread_count
             FROM conversations c
             LEFT JOIN found_items fi ON c.item_id = fi.rowid
+            LEFT JOIN successful_returns sr ON c.item_id = sr.item_id
             LEFT JOIN users u1 ON c.user_id_1 = u1.id
             LEFT JOIN users u2 ON c.user_id_2 = u2.id
             INNER JOIN (
@@ -4738,7 +4873,7 @@ def get_user_reports_with_matches(user_id):
         # Owner needs to see ALL their items to access "View Responses" and make decisions
         found_items = conn.execute("""
             SELECT f.rowid as id, f.category_id, f.location_id, f.title, f.description, 
-                   f.color, f.size, f.image_filename, f.date_found, f.time_found,
+                   f.color, f.size, f.image_filename,
                    f.current_location, f.finder_notes, f.is_private, f.privacy_expires_at,
                    f.is_claimed, f.status, f.created_at, f.privacy_expires,
                    f.finder_name, f.finder_email, f.finder_phone,
@@ -4774,7 +4909,7 @@ def get_user_reports_with_matches(user_id):
                 except:
                     pass
             
-            # Get pre-computed matches from ml_matches table (>70% threshold)
+            # Get pre-computed matches from ml_matches table (>80% threshold)
             conn2 = get_db()
             matches = []
             if conn2:
@@ -4782,7 +4917,7 @@ def get_user_reports_with_matches(user_id):
                     match_rows = conn2.execute("""
                         SELECT m.match_score, m.score_breakdown,
                                f.rowid as id, f.title, f.description, f.color, f.size,
-                               f.date_found, f.time_found, f.image_filename,
+                               f.image_filename,
                                f.finder_name, f.finder_email, f.finder_phone,
                                f.current_location, f.is_claimed, f.status,
                                c.name as category_name,
@@ -4791,26 +4926,13 @@ def get_user_reports_with_matches(user_id):
                         JOIN found_items f ON m.found_item_id = f.rowid
                         LEFT JOIN categories c ON f.category_id = c.id
                         LEFT JOIN locations loc ON f.location_id = loc.id
-                        WHERE m.lost_item_id = ? AND m.match_score >= 0.7
+                        WHERE m.lost_item_id = ? AND m.match_score >= 0.8
                         ORDER BY m.match_score DESC
                         LIMIT 10
                     """, (item_dict['id'],)).fetchall()
                     
                     for row in match_rows:
                         match_dict = dict(row)
-                        # Format match dates
-                        if match_dict.get('date_found'):
-                            try:
-                                date_obj = datetime.strptime(match_dict['date_found'], '%Y-%m-%d')
-                                match_dict['date_found'] = date_obj.strftime('%m/%d/%Y')
-                            except:
-                                pass
-                        if match_dict.get('time_found'):
-                            try:
-                                time_obj = datetime.strptime(match_dict['time_found'], '%H:%M:%S')
-                                match_dict['time_found'] = time_obj.strftime('%I:%M %p')
-                            except:
-                                pass
                         matches.append(match_dict)
                     
                     conn2.close()
@@ -4827,22 +4949,7 @@ def get_user_reports_with_matches(user_id):
         for item in found_items:
             item_dict = dict(item)
             
-            # Format dates
-            if item_dict.get('date_found'):
-                try:
-                    date_obj = datetime.strptime(item_dict['date_found'], '%Y-%m-%d')
-                    item_dict['date_found'] = date_obj.strftime('%m/%d/%Y')
-                except:
-                    pass
-            
-            if item_dict.get('time_found'):
-                try:
-                    time_obj = datetime.strptime(item_dict['time_found'], '%H:%M:%S')
-                    item_dict['time_found'] = time_obj.strftime('%I:%M %p')
-                except:
-                    pass
-            
-            # Get pre-computed matches from ml_matches table (>70% threshold)
+            # Get pre-computed matches from ml_matches table (>80% threshold)
             conn2 = get_db()
             matches = []
             if conn2:
@@ -4859,7 +4966,7 @@ def get_user_reports_with_matches(user_id):
                         JOIN lost_items l ON m.lost_item_id = l.rowid
                         LEFT JOIN categories c ON l.category_id = c.id
                         LEFT JOIN locations loc ON l.location_id = loc.id
-                        WHERE m.found_item_id = ? AND m.match_score >= 0.7
+                        WHERE m.found_item_id = ? AND m.match_score >= 0.8
                         ORDER BY m.match_score DESC
                         LIMIT 10
                     """, (item_dict['id'],)).fetchall()
@@ -4950,7 +5057,7 @@ def get_user_matches_summary(user_id):
         
         # Count matches from pre-computed ml_matches table
         total_matches = 0
-        high_confidence_matches = 0  # >=70%
+        high_confidence_matches = 0  # >=80%
         
         # Count matches for lost items
         for item_id in lost_item_ids:
@@ -4958,14 +5065,14 @@ def get_user_matches_summary(user_id):
                 match_count = conn.execute("""
                     SELECT COUNT(*) as count 
                     FROM ml_matches 
-                    WHERE lost_item_id = ? AND match_score >= 0.7
+                    WHERE lost_item_id = ? AND match_score >= 0.8
                 """, (item_id,)).fetchone()['count']
                 total_matches += match_count
                 
                 high_conf_count = conn.execute("""
                     SELECT COUNT(*) as count 
                     FROM ml_matches 
-                    WHERE lost_item_id = ? AND match_score >= 0.7
+                    WHERE lost_item_id = ? AND match_score >= 0.8
                 """, (item_id,)).fetchone()['count']
                 high_confidence_matches += high_conf_count
             except:
@@ -4977,14 +5084,14 @@ def get_user_matches_summary(user_id):
                 match_count = conn.execute("""
                     SELECT COUNT(*) as count 
                     FROM ml_matches 
-                    WHERE found_item_id = ? AND match_score >= 0.7
+                    WHERE found_item_id = ? AND match_score >= 0.8
                 """, (item_id,)).fetchone()['count']
                 total_matches += match_count
                 
                 high_conf_count = conn.execute("""
                     SELECT COUNT(*) as count 
                     FROM ml_matches 
-                    WHERE found_item_id = ? AND match_score >= 0.7
+                    WHERE found_item_id = ? AND match_score >= 0.8
                 """, (item_id,)).fetchone()['count']
                 high_confidence_matches += high_conf_count
             except:
@@ -5876,9 +5983,12 @@ def get_successful_returns():
                     sr.days_to_finalize,
                     sr.verification_code,
                     u.phone_number as claimer_phone,
+                    c.secure_id as conversation_id,
                     'owner' as role
                 FROM successful_returns sr
                 LEFT JOIN users u ON u.email = sr.claimer_email
+                LEFT JOIN users u_owner ON u_owner.email = sr.owner_email
+                LEFT JOIN conversations c ON sr.item_id = c.item_id AND ((c.user_id_1 = u_owner.id AND c.user_id_2 = u.id) OR (c.user_id_1 = u.id AND c.user_id_2 = u_owner.id))
                 WHERE sr.owner_email = ?
                 ORDER BY sr.finalized_date DESC
             ''', (email,))
@@ -5889,6 +5999,7 @@ def get_successful_returns():
                 # Calculate if contact info should still be visible (7 days from finalization for owners)
                 try:
                     finalized_dt = datetime.strptime(ret_dict['finalized_at'], '%Y-%m-%d %H:%M:%S')
+                    finalized_dt = ET.localize(finalized_dt)
                     days_since_finalized = (get_et_now() - finalized_dt).days
                     ret_dict['show_contact_info'] = days_since_finalized < 7
                     ret_dict['contact_visible_days_remaining'] = max(0, 7 - days_since_finalized)
@@ -5915,9 +6026,12 @@ def get_successful_returns():
                     sr.days_to_finalize,
                     sr.verification_code,
                     u.phone_number as owner_phone,
+                    c.secure_id as conversation_id,
                     'claimer' as role
                 FROM successful_returns sr
                 LEFT JOIN users u ON u.email = sr.owner_email
+                LEFT JOIN users u_claimer ON u_claimer.email = sr.claimer_email
+                LEFT JOIN conversations c ON sr.item_id = c.item_id AND ((c.user_id_1 = u.id AND c.user_id_2 = u_claimer.id) OR (c.user_id_1 = u_claimer.id AND c.user_id_2 = u.id))
                 WHERE sr.claimer_email = ?
                 ORDER BY sr.finalized_date DESC
             ''', (email,))
@@ -5928,6 +6042,7 @@ def get_successful_returns():
                 # Calculate if contact info should still be visible (7 days from finalization)
                 try:
                     finalized_dt = datetime.strptime(claim_dict['finalized_at'], '%Y-%m-%d %H:%M:%S')
+                    finalized_dt = ET.localize(finalized_dt)
                     days_since_finalized = (get_et_now() - finalized_dt).days
                     claim_dict['show_contact_info'] = days_since_finalized < 7
                     claim_dict['contact_visible_days_remaining'] = max(0, 7 - days_since_finalized)
@@ -6219,11 +6334,14 @@ def submit_bug_report():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
+        # Use ET timezone for created_at
+        created_at = get_et_now_str()
+        
         cursor.execute('''
             INSERT INTO bug_reports (
                 name, email, issue_type, title, description,
                 priority, browser, device_type, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)
         ''', (
             data['name'],
             data['email'],
@@ -6232,7 +6350,8 @@ def submit_bug_report():
             data['description'],
             data.get('priority', 'MEDIUM'),
             data.get('browser', ''),
-            data.get('deviceType', '')
+            data.get('deviceType', ''),
+            created_at
         ))
         
         report_id = cursor.lastrowid
@@ -6325,13 +6444,15 @@ def update_bug_report(report_id):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
-        # Check if user is a moderator
-        cursor.execute('SELECT is_moderator FROM users WHERE email = ?', (moderator_email,))
+        # Check if user is a moderator and get their name
+        cursor.execute('SELECT is_moderator, full_name FROM users WHERE email = ?', (moderator_email,))
         user = cursor.fetchone()
         
         if not user or not user[0]:
             conn.close()
             return jsonify({'error': 'Access denied. Moderator privileges required.'}), 403
+        
+        moderator_name = user[1]
         
         update_fields = []
         params = []
@@ -6347,11 +6468,16 @@ def update_bug_report(report_id):
         if 'moderator_email' in data:
             update_fields.append('moderator_email = ?')
             params.append(data['moderator_email'])
+            update_fields.append('moderator_name = ?')
+            params.append(moderator_name)
         
-        update_fields.append('updated_at = CURRENT_TIMESTAMP')
+        # Use ET timezone for timestamps
+        update_fields.append('updated_at = ?')
+        params.append(get_et_now_str())
         
         if data.get('status') == 'RESOLVED':
-            update_fields.append('resolved_at = CURRENT_TIMESTAMP')
+            update_fields.append('resolved_at = ?')
+            params.append(get_et_now_str())
         
         params.append(report_id)
         
@@ -6370,6 +6496,108 @@ def update_bug_report(report_id):
         
     except Exception as e:
         print(f"❌ Error updating bug report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/send-bug-report-email', methods=['POST'])
+def send_bug_report_email():
+    """Send email to bug reporter (moderators only)"""
+    try:
+        data = request.json
+        moderator_email = data.get('moderator_email')
+        
+        if not moderator_email:
+            return jsonify({'error': 'Moderator email required'}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Check if user is a moderator
+        cursor.execute('SELECT is_moderator FROM users WHERE email = ?', (moderator_email,))
+        user = cursor.fetchone()
+        
+        if not user or not user[0]:
+            conn.close()
+            return jsonify({'error': 'Access denied. Moderator privileges required.'}), 403
+        
+        conn.close()
+        
+        # Extract email details
+        report_id = data.get('report_id')
+        reporter_email = data.get('reporter_email')
+        reporter_name = data.get('reporter_name')
+        bug_title = data.get('bug_title')
+        bug_status = data.get('bug_status')
+        bug_description = data.get('bug_description', '')
+        bug_issue_type = data.get('bug_issue_type', '')
+        message = data.get('message')
+        
+        if not all([reporter_email, reporter_name, bug_title, message]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Send email using the email verification service
+        from email_verification_service import send_email
+        
+        subject = f"Re: Bug Report #{report_id} - {bug_title}"
+        
+        # Get bug description
+        bug_description = data.get('bug_description', '')
+        bug_issue_type = data.get('bug_issue_type', '')
+        
+        email_body = f"""
+Dear {reporter_name},
+
+Thank you for reporting a bug to TraceBack. We wanted to update you on your report.
+
+Bug Report Details:
+- Report ID: #{report_id}
+- Title: {bug_title}
+- Issue Type: {bug_issue_type}
+- Current Status: {bug_status}
+
+Your Description:
+{bug_description}
+
+Message from TraceBack Moderation Team:
+{message}
+
+If you have any questions or need to provide additional information, please visit our website contact page.
+
+Best regards,
+TraceBack Moderation Team
+Kent State University
+"""
+        
+        success = send_email(
+            to_email=reporter_email,
+            subject=subject,
+            body=email_body
+        )
+        
+        if success:
+            # Update bug report with email_sent timestamp and message (using ET timezone)
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE bug_reports SET email_sent = ?, email_message = ? WHERE report_id = ?',
+                (get_et_now_str(), message, report_id)
+            )
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ Email sent to {reporter_email} for bug report #{report_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Email sent successfully'
+            }), 200
+        else:
+            print(f"❌ Failed to send email to {reporter_email}")
+            return jsonify({'error': 'Failed to send email'}), 500
+        
+    except Exception as e:
+        print(f"❌ Error sending bug report email: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

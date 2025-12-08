@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -290,7 +291,7 @@ export default function FoundItemDetailsPage() {
                       <h1 className="text-2xl font-bold text-gray-900 mb-2">{foundItem.title}</h1>
                       <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
                         <div>
-                          <span className="font-semibold">Found on:</span> {new Date(foundItem.date_found).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}{foundItem.time_found && ` at ${convertTo12Hour(foundItem.time_found)}`}
+                          <span className="font-semibold">Found on:</span> {new Date(foundItem.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </div>
                         <div>
                           <span className="font-semibold">Location:</span> {foundItem.location_name || foundItem.location}
@@ -604,7 +605,7 @@ export default function FoundItemDetailsPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                🎉 Finalize Claim for {selectedClaimer?.userName}
+                🎉 Finalize Claim
               </h2>
               
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -615,14 +616,14 @@ export default function FoundItemDetailsPage() {
                   <li>Delete the found item post permanently</li>
                   <li>Record this successful return in TrackeBack's permanent records</li>
                   <li>Add this to your successful returns history</li>
-                  <li>Add this to {selectedClaimer?.userName}'s successful claims history</li>
+                  <li>Add this to the claimer's successful claims history</li>
                   <li>Store this information for moderation purposes</li>
                 </ul>
               </div>
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Why are you giving this item to {selectedClaimer?.userName}? *
+                  Why are you giving this item to this person? *
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
                   Please explain your reason for selecting this person as the rightful owner. 
@@ -653,7 +654,7 @@ export default function FoundItemDetailsPage() {
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">📊 What happens next:</h3>
                 <ul className="text-sm text-gray-700 space-y-1">
                   <li>✅ The found item will be marked as successfully returned</li>
-                  <li>📧 {selectedClaimer?.userName} will receive a notification</li>
+                  <li>📧 The claimer will receive a notification</li>
                   <li>🗑️ The post will be deleted from public view</li>
                   <li>📝 This information will be preserved in TrackeBack's moderation records</li>
                   <li>⭐ Both you and the claimer will have this in your success histories</li>

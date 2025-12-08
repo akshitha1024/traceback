@@ -1,4 +1,5 @@
-'use client';
+"use client";
+
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -78,7 +79,7 @@ export default function VerifyOwnershipPage() {
       if (!response.ok) {
         const errorData = await response.json();
         if (errorData.privacy_restricted) {
-          throw new Error('This item is in the 3-day private period. Only users with matching lost items (≥70% match) can claim it during this time. The item will be publicly accessible after 3 days.');
+          throw new Error('This item is in the 3-day private period. Only users with matching lost items (≥80% match) can claim it during this time. The item will be publicly accessible after 3 days.');
         }
         throw new Error(errorData.error || 'Failed to fetch security questions');
       }

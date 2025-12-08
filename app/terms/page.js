@@ -1,4 +1,6 @@
 "use client";
+
+
 import Link from "next/link";
 import Image from "next/image";
 import Footer from "@/components/Footer";
@@ -70,7 +72,7 @@ export default function TermsOfService() {
               <h2 className="text-2xl font-bold text-gray-900 pt-2">Eligibility</h2>
             </div>
             <div className="pl-16 space-y-3 text-gray-700">
-              <p><strong>1.1</strong> You must be a currently enrolled student, faculty member, or staff member of Kent State University.</p>
+              <p><strong>1.1</strong> You must be a currently enrolled student, faculty member, or staff member of <strong>Kent State University, Kent Campus. </strong></p>
               <p><strong>1.2</strong> A valid Kent State email and OTP verification are required to create an account.</p>
               <p><strong>1.3</strong> You may not use TraceBack if you are not affiliated with the university.</p>
             </div>
@@ -206,11 +208,13 @@ export default function TermsOfService() {
               <p className="font-semibold">Users agree not to:</p>
               <p><strong>9.1</strong> Submit false, fraudulent, or misleading reports.</p>
               <p><strong>9.2</strong> Attempt to claim items that do not belong to them.</p>
-              <p><strong>9.3</strong> Upload inappropriate, harmful, or abusive content.</p>
-              <p><strong>9.4</strong> Harass, threaten, or deceive other users.</p>
-              <p><strong>9.5</strong> Misuse TraceBack's features to gain unfair advantage.</p>
-              <p><strong>9.6</strong> Attempt to bypass security or impersonate another user.</p>
-              <p className="mt-4 font-semibold text-red-700">Violations may result in suspension or referral to university authorities.</p>
+              <p><strong>9.3</strong> Taking an biased decision while deciding final claimer instead of relying on claimer's responses</p>
+              <p><strong>9.4</strong> Upload inappropriate, harmful, or abusive content.</p>
+              <p><strong>9.5</strong> Harass, threaten, or deceive other users.</p>
+              <p><strong>9.6</strong> Misuse TraceBack's features to gain unfair advantage.</p>
+              <p><strong>9.7</strong> Attempt to bypass security or impersonate another user.</p>
+              
+              <p className="mt-4 font-semibold text-red-700">Violations may result in suspension or termination of account </p>
             </div>
           </div>
 

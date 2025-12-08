@@ -1,4 +1,7 @@
 "use client";
+
+
+
 import Link from "next/link";
 import Image from "next/image";
 import Footer from "@/components/Footer";
@@ -55,7 +58,7 @@ export default function Landing() {
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
               <div className="text-5xl mb-5">⚡</div>
               <h3 className="font-bold text-xl mb-3 text-gray-800">Smart Matching</h3>
-              <p className="text-gray-600 text-base leading-relaxed">AI compares images, descriptions, color, location, and date to automatically connect lost and found reports — no manual searching required.</p>
+              <p className="text-gray-600 text-base leading-relaxed">AI analyzes text descriptions, images, colors, locations, and dates to suggest the most likely matches between lost and found reports — helping users find their items faster.</p>
             </div>
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
               <div className="text-5xl mb-5">🔒</div>
@@ -64,8 +67,8 @@ export default function Landing() {
             </div>
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
               <div className="text-5xl mb-5">🏫</div>
-              <h3 className="font-bold text-xl mb-3 text-gray-800">Made for Your Campus</h3>
-              <p className="text-gray-600 text-base leading-relaxed">Fully optimized for your university — covering all buildings, dorms, classrooms, libraries, and common areas. Only verified students, staff, and faculty can participate.</p>
+              <h3 className="font-bold text-xl mb-3 text-gray-800">Made for Our Campus — Kent State University, Kent</h3>
+              <p className="text-gray-600 text-base leading-relaxed">Built specifically for Kent State University with 79 mapped locations, including academic buildings, residence halls, dining areas, libraries, and common spaces. Designed exclusively for verified students, staff, and faculty.</p>
             </div>
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
               <div className="text-5xl mb-5">🎯</div>

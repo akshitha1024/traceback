@@ -1,4 +1,7 @@
 "use client";
+
+
+
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -52,7 +55,7 @@ export default function LostItemDetailsPage() {
 
         setLostItem(item);
 
-        // Use ML matches from backend (already filtered for >=70% threshold)
+        // Use ML matches from backend (already filtered for >=80% threshold)
         if (item.ml_matches && item.ml_matches.length > 0) {
           const mlMatches = item.ml_matches.map(match => ({
             id: match.id,
@@ -60,8 +63,7 @@ export default function LostItemDetailsPage() {
             description: match.description,
             color: match.color,
             size: match.size,
-            date_found: match.date_found,
-            time_found: match.time_found,
+            created_at: match.created_at,
             image_filename: match.image_filename,
             finder_name: match.finder_name,
             finder_email: match.finder_email,

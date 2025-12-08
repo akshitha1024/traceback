@@ -1,4 +1,6 @@
 "use client";
+
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -81,7 +83,7 @@ export default function FAQ() {
     },
     {
       question: "What happens if someone uploads inappropriate or fake content?",
-      answer: "Users can report posts using the Report Abuse option. Reasons include inappropriate content, spam, harassment, or safety concerns. Moderators review reports, and your identity remains confidential."
+      answer: "Users can report posts using the Report Abuse option. Reasons include inappropriate content, spam, harassment, or safety concerns. Moderators review reports, and your identity remains confidential (only moderators can see your identity)."
     },
     {
       question: "What data does TraceBack store?",

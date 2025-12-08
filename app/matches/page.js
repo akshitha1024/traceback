@@ -1,4 +1,7 @@
 "use client";
+
+
+
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -236,8 +239,7 @@ export default function Matches() {
                       description: report.description,
                       category: report.category_name || report.category,
                       location: report.location_name || report.location,
-                      date: report.date_found,
-                      time: report.time_found,
+                      date: report.created_at,
                       type: 'FOUND',
                       reportedBy: report.finder_name || report.finder_email
                     },
@@ -410,7 +412,7 @@ export default function Matches() {
                           <p className="text-sm text-gray-600 mb-2">{match.description}</p>
                           <div className="flex items-center justify-between">
                             <p className="text-xs text-gray-500">📍 {match.location}</p>
-                            <p className="text-xs text-gray-500">📅 {match.date_lost || match.date_found}</p>
+                            <p className="text-xs text-gray-500">📅 {new Date(match.date_lost || match.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                           </div>
                         </div>
                         

@@ -1,6 +1,6 @@
 """
 Combined Scheduler for TrackeBack
-Runs both cleanup and ML matching tasks
+Runs cleanup, ML matching, and finder decision notification tasks
 """
 
 import sqlite3
@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 import schedule
 from ml_matching_service import MLMatchingService
+from finder_decision_notification_scheduler import check_and_notify_finders, load_already_notified_finders
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'traceback_100k.db')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
@@ -146,11 +147,15 @@ def run_combined_scheduler():
     print("=" * 60)
     print("🕐 Starting Combined Scheduler for TrackeBack")
     print("=" * 60)
-    print("\n📋 Scheduled Tasks:")
+    print("🚀 Combined Scheduler Starting...")
     print("   🤖 ML Matching: Every 1 hour")
     print("   🗑️  Cleanup: Every day at 2:00 AM")
+    print("   ⏰ Finder Decisions: Every 1 hour")
     print("\nPress Ctrl+C to stop the scheduler\n")
     print("=" * 60)
+    
+    # Load already notified finders to avoid duplicate notifications
+    load_already_notified_finders()
     
     # Schedule ML matching every hour
     schedule.every().hour.do(run_ml_matching)
@@ -158,10 +163,14 @@ def run_combined_scheduler():
     # Schedule cleanup every day at 2:00 AM
     schedule.every().day.at("02:00").do(cleanup_old_claimed_items)
     
-    # Run both tasks immediately on start
+    # Schedule finder decision notifications every hour
+    schedule.every().hour.do(check_and_notify_finders)
+    
+    # Run all tasks immediately on start
     print("\n🚀 Running initial tasks...")
     run_ml_matching()
     cleanup_old_claimed_items()
+    check_and_notify_finders()
     
     print("\n⏳ All scheduled tasks active. Waiting for next run...\n")
     

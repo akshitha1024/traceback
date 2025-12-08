@@ -1,4 +1,7 @@
 "use client";
+
+
+
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -267,7 +270,10 @@ export default function SuccessHistoryPage() {
                               {new Date(item.date_found).toLocaleDateString('en-US', {
                                 month: '2-digit',
                                 day: '2-digit',
-                                year: 'numeric'
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
                               })}
                             </span>
                           </div>
@@ -370,13 +376,11 @@ export default function SuccessHistoryPage() {
 
                       <div className="flex items-center gap-4 pt-3 border-t border-gray-200">
                         <span className="inline-flex items-center gap-1 text-sm font-medium text-gray-700">
-                          <span className="text-blue-600">⏱️</span>
-                          <span className="font-bold text-gray-900">{item.days_to_finalize}</span> 
-                          {item.days_to_finalize === 1 ? 'day' : 'days'} to finalize
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-sm font-medium text-gray-700">
                           <span className="text-purple-600">🆔</span>
-                          Return ID: <span className="font-bold text-gray-900">#{item.return_id}</span>
+                          ID: <span className="font-bold text-gray-900">{item.conversation_id || 'N/A'}</span>
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          (You may use this conversation ID as double security code)
                         </span>
                       </div>
                     </div>

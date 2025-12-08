@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import Protected from "@/components/Protected";
 import Navbar from "@/components/Navbar";
@@ -138,19 +139,14 @@ export default function ClaimAttemptsPage() {
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-600 mb-1">Found On</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {(() => {
-                            // Parse date as local time to avoid timezone shift
-                            const [year, month, day] = attempt.date_found.split('-');
-                            const date = new Date(year, month - 1, day);
-                            return date.toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            });
-                          })()}
-                          {attempt.time_found && (
-                            <span className="text-gray-600"> at {convertTo12Hour(attempt.time_found)}</span>
-                          )}
+                          {new Date(attempt.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
                         </p>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
@@ -232,56 +228,22 @@ export default function ClaimAttemptsPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-green-900 mb-1">
+                            <p className="text-sm font-medium text-green-900 mb-2">
                               🎉 Congratulations! You Successfully Claimed This Item!
                             </p>
-                            <p className="text-xs text-green-700 mb-3">
-                              The owner has finalized your claim and this item has been given to you. Contact the owner to arrange pickup.
-                            </p>
                             
-                            {attempt.show_contact_info ? (
-                              <>
-                                <div className="bg-white rounded-lg p-3 mb-2">
-                                  <p className="text-xs font-semibold text-gray-700 mb-2">📞 Owner Contact Information:</p>
-                                  <div className="space-y-1">
-                                    <p className="text-sm text-gray-900">
-                                      <span className="font-medium">Name:</span> {attempt.finder_name || 'Not provided'}
-                                    </p>
-                                    <p className="text-sm text-gray-900">
-                                      <span className="font-medium">Email:</span>{' '}
-                                      <a href={`mailto:${attempt.finder_email}`} className="text-blue-600 hover:underline">
-                                        {attempt.finder_email}
-                                      </a>
-                                    </p>
-                                    {attempt.finder_phone && (
-                                      <p className="text-sm text-gray-900">
-                                        <span className="font-medium">Phone:</span>{' '}
-                                        <a href={`tel:${attempt.finder_phone}`} className="text-blue-600 hover:underline">
-                                          {attempt.finder_phone}
-                                        </a>
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3 mt-3">
-                                  <a
-                                    href={`/messages?conversation=claim_${attempt.found_item_id}_${encodeURIComponent(attempt.finder_email)}`}
-                                    className="flex-1 bg-gray-900 hover:bg-black text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-center"
-                                  >
-                                    💬 Message Finder
-                                  </a>
-                                  <p className="text-xs text-green-600">
-                                    ⏰ Visible for {attempt.contact_visible_days_remaining} more day{attempt.contact_visible_days_remaining !== 1 ? 's' : ''}
-                                  </p>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-2">
-                                <p className="text-xs text-yellow-800">
-                                  ⚠️ Contact information is no longer visible (5 days have passed since finalization). Please check your email for previous communications with the owner.
-                                </p>
-                              </div>
-                            )}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <p className="text-xs font-semibold text-blue-900 mb-2">📧 Contact Information Available</p>
+                              <p className="text-xs text-blue-800 mb-3">
+                                Please check your <strong>email</strong> or visit your <strong>Returns & Claims History</strong> page for owner contact details. Contact information is available for 8 days after finalization.
+                              </p>
+                              <a
+                                href="/success-history"
+                                className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                              >
+                                View Success History →
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </div>

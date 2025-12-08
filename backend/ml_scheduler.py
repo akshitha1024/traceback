@@ -1,22 +1,155 @@
 """
 ML Matching Scheduler
 Runs ML matching between lost and found items every hour
+Also handles finder decision notifications
 """
 
 import sqlite3
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import schedule
 from ml_matching_service import MLMatchingService
+from finder_decision_notification_scheduler import check_and_notify_finders, load_already_notified_finders
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'traceback_100k.db')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 
+def update_expired_privacy():
+    """
+    Automatically set is_private=0 for found items where privacy_expires_at has passed
+    Also sends email notifications to lost item owners when items become public
+    """
+    try:
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get items where privacy period has expired (before updating)
+        cursor.execute("""
+            SELECT rowid, title, category_id, location_id, finder_email, finder_name
+            FROM found_items 
+            WHERE is_private = 1 
+            AND datetime(privacy_expires_at) < datetime('now', 'localtime')
+        """)
+        
+        expired_items = cursor.fetchall()
+        
+        # Update items to make them public
+        cursor.execute("""
+            UPDATE found_items 
+            SET is_private = 0 
+            WHERE is_private = 1 
+            AND datetime(privacy_expires_at) < datetime('now', 'localtime')
+        """)
+        
+        updated_count = cursor.rowcount
+        conn.commit()
+        
+        # Send email notifications about newly public items
+        if updated_count > 0:
+            print(f"[{timestamp}] ✅ Updated {updated_count} items from private to public (privacy expired)")
+            send_public_item_notifications(expired_items, conn)
+        
+        conn.close()
+        return updated_count
+        
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [ERROR] Privacy update failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return 0
+
+def send_public_item_notifications(items, conn):
+    """
+    Send email notifications to ALL users (except finder) when found items become public
+    Only sends once per user per item (duplicate prevention)
+    """
+    try:
+        from email_verification_service import send_email
+        cursor = conn.cursor()
+        
+        for item in items:
+            # Get category and location names
+            cursor.execute("SELECT name FROM categories WHERE id = ?", (item['category_id'],))
+            category = cursor.fetchone()
+            category_name = category[0] if category else 'Unknown'
+            
+            cursor.execute("SELECT name FROM locations WHERE id = ?", (item['location_id'],))
+            location = cursor.fetchone()
+            location_name = location[0] if location else 'Unknown'
+            
+            # Get ALL users except the finder
+            cursor.execute("""
+                SELECT email, full_name 
+                FROM users 
+                WHERE email != ? 
+                AND email IS NOT NULL
+            """, (item['finder_email'],))
+            
+            all_users = cursor.fetchall()
+            
+            for user in all_users:
+                # Check if notification already sent to this user for this item
+                cursor.execute("""
+                    SELECT notification_id 
+                    FROM email_notifications 
+                    WHERE found_item_id = ? 
+                    AND user_email = ? 
+                    AND notification_type = 'public_item'
+                """, (item['rowid'], user[0]))
+                
+                already_sent = cursor.fetchone()
+                if already_sent:
+                    continue  # Skip if already notified
+                
+                subject = f"🔔 New Public Found Item: {item['title']}"
+                body = f"""
+Dear {user[1] or 'User'},
+
+A new found item is now publicly available on TraceBack!
+
+<strong>Item Details:</strong>
+- Title: {item['title']}
+- Category: {category_name}
+- Location: {location_name}
+
+This item is now available for everyone to view and claim if it's yours.
+
+<strong>What to do next:</strong>
+1. Visit TraceBack and browse found items
+2. If this is your item, submit a claim with proof of ownership
+3. Answer security questions to verify ownership
+
+<strong>Note:</strong> If you don't see this item in the found items page, it may be in the claimed items section (last 3-day chance).
+
+Best regards,
+The TraceBack Team
+                """
+                
+                try:
+                    send_email(user[0], subject, body)
+                    
+                    # Record notification to prevent duplicates
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO email_notifications 
+                        (found_item_id, user_email, notification_type) 
+                        VALUES (?, ?, 'public_item')
+                    """, (item['rowid'], user[0]))
+                    conn.commit()
+                    
+                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 📧 Sent public item notification to {user[0]}")
+                except Exception as e:
+                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ Failed to send email to {user[0]}: {e}")
+                    
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [ERROR] Failed to send public item notifications: {e}")
+
 def run_ml_matching():
     """
     Run ML matching for all unclaimed found items against all lost items
-    Stores matches with scores >= 70% in ml_matches table for fast dashboard loading
+    Stores matches with scores >= 80% in ml_matches table for fast dashboard loading
     """
     try:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -73,7 +206,7 @@ def run_ml_matching():
             try:
                 matches = ml_service.find_matches_for_found_item(
                     found_item_id=found_id,
-                    min_score=0.7,  # 70% threshold - only show high-quality matches
+                    min_score=0.8,  # 80% threshold - only show high-quality matches
                     top_k=10
                 )
                 
@@ -81,11 +214,11 @@ def run_ml_matching():
                     total_matches += len(matches)
                     high_confidence += len([m for m in matches if m['match_score'] >= 0.8])
                     
-                    # Store matches in database (only 70%+ matches are returned)
+                    # Store matches in database (only 80%+ matches are returned)
                     for match in matches:
                         try:
-                            # Additional verification: only store matches >= 70%
-                            if match['match_score'] >= 0.7:
+                            # Additional verification: only store matches >= 80%
+                            if match['match_score'] >= 0.8:
                                 score_breakdown = json.dumps({
                                     'description': match.get('description_similarity', 0),
                                     'image': match.get('image_similarity', 0),
@@ -119,10 +252,10 @@ def run_ml_matching():
                                 else:
                                     print(f"   [MATCH] Found #{found_id} <-> Lost #{match['lost_item_id']} ({score_pct:.1f}%)")
                             
-                            # Send email notification to lost item reporter (only once per match and only for 70%+ matches)
+                            # Send email notification to lost item reporter (only once per match and only for 80%+ matches)
                             try:
-                                # Only send email for matches >= 70%
-                                if match['match_score'] >= 0.7:
+                                # Only send email for matches >= 80%
+                                if match['match_score'] >= 0.8:
                                     # Check if email was already sent for this match
                                     email_sent = cursor.execute('''
                                         SELECT email_sent FROM ml_matches
@@ -250,19 +383,96 @@ This is an automated notification. Please do not reply to this email.
         return 0
 
 
+def cleanup_old_lost_items():
+    """Delete lost items that are older than 30 days"""
+    try:
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"\n[{timestamp}] 🧹 Starting cleanup of lost items older than 30 days...")
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get items to be deleted for logging
+        cursor.execute('''
+            SELECT rowid, title, created_at 
+            FROM lost_items 
+            WHERE datetime(created_at) <= datetime('now', 'localtime', '-30 days')
+        ''')
+        items_to_delete = cursor.fetchall()
+        
+        if items_to_delete:
+            print(f"[{timestamp}] 🗑️  Deleting {len(items_to_delete)} lost items older than 30 days:")
+            for item in items_to_delete[:5]:  # Show first 5
+                print(f"   - {item[1]} (created: {item[2]})")
+            if len(items_to_delete) > 5:
+                print(f"   ... and {len(items_to_delete) - 5} more")
+        else:
+            print(f"[{timestamp}] ✨ No lost items older than 30 days to delete")
+        
+        # Delete the items
+        cursor.execute('''
+            DELETE FROM lost_items 
+            WHERE datetime(created_at) <= datetime('now', 'localtime', '-30 days')
+        ''')
+        
+        deleted_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        if deleted_count > 0:
+            print(f"[{timestamp}] ✅ Successfully deleted {deleted_count} old lost items")
+        
+        return deleted_count
+        
+    except Exception as e:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ❌ Error cleaning up lost items: {e}")
+        return 0
+
+
+def run_hourly_tasks():
+    """Run all hourly tasks: privacy updates, ML matching, and finder notifications"""
+    print("\n" + "="*60)
+    print("RUNNING HOURLY TASKS")
+    print("="*60)
+    
+    # First, update expired privacy items
+    update_expired_privacy()
+    
+    # Then run ML matching
+    run_ml_matching()
+    
+    # Finally, check for finder decision notifications
+    check_and_notify_finders()
+    
+    print("="*60)
+    print("HOURLY TASKS COMPLETED")
+    print("="*60 + "\n")
+
 def run_scheduler():
     """Run the ML matching scheduler"""
     print("Starting ML Matching Scheduler for TrackeBack")
-    print("ML matching will run every 1 hour")
-    print("Matches with >=70% confidence will be stored in database")
+    print("Tasks will run:")
+    print("  HOURLY:")
+    print("    1. Update expired privacy items (make public)")
+    print("    2. Run ML matching (>=80% confidence)")
+    print("    3. Notify finders when 3-day decision period ends")
+    print("  DAILY (2:00 AM):")
+    print("    4. Delete lost items older than 30 days")
     print("Press Ctrl+C to stop the scheduler\n")
     
-    # Schedule ML matching every hour (production mode)
-    schedule.every().hour.do(run_ml_matching)
+    # Load already notified finders to avoid duplicate notifications
+    load_already_notified_finders()
     
-    # Run matching immediately on start
-    print("Running initial ML matching...")
-    run_ml_matching()
+    # Schedule hourly tasks
+    schedule.every().hour.do(run_hourly_tasks)
+    
+    # Schedule daily cleanup at 2:00 AM
+    schedule.every().day.at("02:00").do(cleanup_old_lost_items)
+    
+    # Run tasks immediately on start
+    print("Running initial tasks...")
+    run_hourly_tasks()
+    cleanup_old_lost_items()
     
     # Keep the scheduler running
     print("\n⏳ Waiting for next scheduled run (in 1 hour)...\n")
