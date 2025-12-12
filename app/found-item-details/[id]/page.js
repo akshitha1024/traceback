@@ -76,10 +76,8 @@ export default function FoundItemDetailsPage() {
 
         if (attemptsResponse.ok) {
           const attemptsData = await attemptsResponse.json();
-          console.log(`Loaded ${attemptsData.attempts?.length || 0} attempts for item ${itemId}`);
           setAttempts(attemptsData.attempts || []);
         } else {
-          console.error('Failed to load attempts:', attemptsResponse.status);
           setAttempts([]);
         }
       } else {

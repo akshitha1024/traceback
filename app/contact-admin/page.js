@@ -40,8 +40,6 @@ export default function ContactAdmin() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Here you would normally send the data to your backend
-    console.log('Contact form submitted:', formData);
     setIsSubmitted(true);
   };
 

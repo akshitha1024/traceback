@@ -83,13 +83,8 @@ export default function ConnectWithPeople() {
       const response = await fetch('http://localhost:5000/api/users/connect');
       const data = await response.json();
       
-      console.log('Users API response:', data);
-      
       if (data.success) {
         setUsers(data.users || []);
-        console.log('Loaded users:', data.users?.length);
-      } else {
-        console.error('API returned success: false', data);
       }
     } catch (error) {
       console.error('Error fetching users:', error);

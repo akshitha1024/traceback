@@ -109,7 +109,6 @@ export default function ReportAbuse() {
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        console.log("Report submitted:", data);
         setSubmitted(true);
       } else {
         alert('Failed to submit report: ' + (data.error || 'Unknown error'));

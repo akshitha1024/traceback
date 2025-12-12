@@ -238,26 +238,36 @@ class MLMatchingService:
             found_item.get('date_found', '')
         )
         
-        # Calculate weighted match score
+        # Calculate weighted match score using dynamic weight redistribution
+        # Base weights for each field
+        desc_weight = 35
+        img_weight = 35
+        loc_weight = 13
+        cat_weight = 7
+        color_weight = 5
+        date_weight = 5
+        
+        # Calculate total weight based on available fields
         if has_both_images:
-            # Use full formula with image similarity
+            # All fields available
+            total_weight = desc_weight + img_weight + loc_weight + cat_weight + color_weight + date_weight
             match_score = (
-                0.35 * desc_sim +
-                0.35 * img_sim +
-                0.13 * loc_sim +
-                0.07 * cat_sim +
-                0.05 * color_sim +
-                0.05 * date_sim
+                (desc_weight / total_weight) * desc_sim +
+                (img_weight / total_weight) * img_sim +
+                (loc_weight / total_weight) * loc_sim +
+                (cat_weight / total_weight) * cat_sim +
+                (color_weight / total_weight) * color_sim +
+                (date_weight / total_weight) * date_sim
             )
         else:
-            # Redistribute weights when no image comparison is possible
-            # Description(50%), Location(18.6%), Category(10%), Color(7.1%), Date(7.1%)
+            # No image available - redistribute image weight proportionally
+            total_weight = desc_weight + loc_weight + cat_weight + color_weight + date_weight
             match_score = (
-                0.500 * desc_sim +
-                0.257 * loc_sim +
-                0.100 * cat_sim +
-                0.071 * color_sim +
-                0.072 * date_sim
+                (desc_weight / total_weight) * desc_sim +
+                (loc_weight / total_weight) * loc_sim +
+                (cat_weight / total_weight) * cat_sim +
+                (color_weight / total_weight) * color_sim +
+                (date_weight / total_weight) * date_sim
             )
         
         return {

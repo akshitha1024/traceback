@@ -1584,9 +1584,6 @@ def register():
     """Register new user with database storage"""
     data = request.get_json()
     
-    # Debug: Print received data
-    print(f"🔍 Register endpoint received data: {data}")
-    
     email = data.get('email', '').strip().lower() if data.get('email') else ''
     password = data.get('password', '').strip() if data.get('password') else ''
     

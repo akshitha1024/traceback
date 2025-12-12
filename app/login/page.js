@@ -1,6 +1,5 @@
 "use client";
 
-
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,8 +26,6 @@ export default function Login() {
     setLoading(true);
     
     try {
-      console.log('Attempting login with:', email.trim().toLowerCase());
-      
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: {
@@ -40,10 +37,7 @@ export default function Login() {
         })
       });
       
-      console.log('Response status:', response.status);
-      
       const data = await response.json();
-      console.log('Response data:', data);
       
       if (response.ok) {
         // Store session token
@@ -55,20 +49,13 @@ export default function Login() {
         localStorage.setItem('sessionExpiresAt', String(expiresAt));
         localStorage.setItem("user", JSON.stringify(data.user));
         
-        console.log('Login successful, redirecting...');
-        
-        // Check if profile is complete
         const profileComplete = data.user.profile_completed === true || 
                                data.user.profile_completed === 1;
         
         if (!profileComplete) {
-          // Redirect to profile creation if not complete
-          console.log('Profile incomplete, redirecting to /profile/create');
           nav.push("/profile/create");
         } else {
-          // Redirect to dashboard or requested page
           const redirectTo = searchParams.get("redirect") || "/dashboard";
-          console.log('Redirecting to:', redirectTo);
           nav.push(redirectTo);
         }
       } else {

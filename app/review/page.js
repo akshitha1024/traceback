@@ -110,7 +110,6 @@ export default function ReviewPage() {
       }
 
       const result = await response.json();
-      console.log('Review submitted:', result);
 
       setSuccess(true);
       

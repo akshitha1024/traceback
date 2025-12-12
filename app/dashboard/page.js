@@ -228,7 +228,7 @@ export default function Dashboard() {
             if (reviewsSection) {
               reviewsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             } else {
-              // If can't find reviews, just scroll to bottom
+              // Fallback scroll to bottom of document viewport
               window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }
           }, 1000);
@@ -254,7 +254,6 @@ export default function Dashboard() {
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       
       if (!currentUser.id) {
-        console.log('No user logged in');
         setLostItems([]);
         setFoundItems([]);
         setLoading(false);
@@ -266,8 +265,6 @@ export default function Dashboard() {
         fetch(`http://localhost:5000/api/user/${currentUser.id}/reports-with-matches`).then(res => res.json()),
         apiService.getStats().catch(() => ({}))
       ]);
-
-      console.log('📊 User reports with matches:', userReportsResponse);
 
       // Extract user's lost and found items
       const userLostItems = userReportsResponse.lost_reports || [];

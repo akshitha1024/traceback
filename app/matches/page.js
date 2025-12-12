@@ -54,7 +54,7 @@ const calculateMatchScore = (item1, item2) => {
   return Math.round((score / maxScore) * 100);
 };
 
-// Calculate text similarity using simple word matching
+// Compute similarity score using tokenized word intersection
 const calculateTextSimilarity = (text1, text2) => {
   if (!text1 || !text2) return 0;
   

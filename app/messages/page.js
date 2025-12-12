@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -39,14 +37,11 @@ export default function MessagesPage() {
   
   const fetchConversationDetails = async (user, conversationId) => {
     try {
-      console.log('Fetching conversation details:', { conversationId });
-      
       // Fetch conversation details from backend using secure ID
       const convResponse = await fetch(`http://localhost:5000/api/get-conversation-details?conversation_id=${conversationId}&user_id=${user.id}`);
       const convData = await convResponse.json();
       
       if (!convData.other_user_id || !convData.item_id) {
-        console.error('Invalid conversation data:', convData);
         alert('Unable to load conversation');
         return;
       }
@@ -54,13 +49,8 @@ export default function MessagesPage() {
       const otherUserId = convData.other_user_id;
       const itemId = convData.item_id;
       
-      console.log('Other user ID:', otherUserId, 'Item ID:', itemId);
-      
-      // Fetch user details by ID
       const response = await fetch(`http://localhost:5000/api/user/${otherUserId}`);
       const data = await response.json();
-      
-      console.log('User data:', data);
       
       if (data.user) {
         // Fetch item title
@@ -72,7 +62,7 @@ export default function MessagesPage() {
             itemTitle = itemData.title;
           }
         } catch (itemError) {
-          console.log('Could not fetch item title:', itemError);
+          // Item title fetch failed, use default
         }
         
         const newConv = {
@@ -87,10 +77,8 @@ export default function MessagesPage() {
           last_message_time: new Date().toISOString(),
           unread_count: 0
         };
-        console.log('Setting conversation:', newConv);
         setSelectedConversation(newConv);
       } else {
-        console.error('User not found for ID:', otherUserId);
         alert('Unable to start conversation: User not found');
       }
     } catch (error) {

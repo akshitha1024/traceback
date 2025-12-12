@@ -35,7 +35,7 @@ export default function ReportPage() {
 
     setCategories(curatedCategories);
 
-    // Restore previous location loading behavior: try backend, fallback to a simple list
+    // Query backend location API with static fallback dataset
     const curatedLocationsFallback = [ { id: 1, name: 'University Library' } ];
 
     const baseURLs = ['http://localhost:5000', 'http://127.0.0.1:5000'];
@@ -93,7 +93,6 @@ export default function ReportPage() {
       const reader = new FileReader();
       reader.onload = (ev) => setImagePreview(ev.target.result);
       reader.readAsDataURL(file);
-      console.log('✅ Image selected:', file.name, 'Size:', Math.round(file.size / 1024), 'KB');
     }
   };
 
@@ -168,7 +167,6 @@ export default function ReportPage() {
       // Add image if selected
       if (selectedImage) {
         submitData.append('image', selectedImage);
-        console.log('📸 Image included in submission:', selectedImage.name);
       }
 
       for (const baseURL of baseURLs) {
@@ -190,7 +188,7 @@ export default function ReportPage() {
             break;
           }
         } catch (urlError) {
-          console.log(`❌ ${baseURL} submission failed:`, urlError.message);
+          // Try next URL
         }
       }
 
