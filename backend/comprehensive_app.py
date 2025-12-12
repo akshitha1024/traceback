@@ -925,10 +925,6 @@ def verify_ownership():
         correct_answers = 0
         total_questions = len(questions)
         
-        print(f"\n🔍 Verification Debug for item {found_item_id}:")
-        print(f"Total questions: {total_questions}")
-        print(f"User answers received: {user_answers}")
-        
         for question in questions:
             question_id = str(question['id'])
             correct_choice = str(question['correct_choice']).strip().upper()
@@ -937,16 +933,8 @@ def verify_ownership():
                 user_answer = str(user_answers[question_id]).strip().upper()
                 is_correct = user_answer == correct_choice
                 
-                print(f"Question {question_id}: '{question['question']}'")
-                print(f"  User answered: '{user_answer}' | Correct: '{correct_choice}' | Match: {is_correct}")
-                
                 if is_correct:
                     correct_answers += 1
-            else:
-                print(f"Question {question_id}: No answer provided")
-        
-        print(f"Result: {correct_answers}/{total_questions} correct ({correct_answers/total_questions*100:.1f}%)")
-        print("=" * 70 + "\n")
         
         # Calculate success rate (need at least 67% correct)
         success_rate = correct_answers / total_questions
@@ -1011,9 +999,6 @@ def verify_ownership():
             conn.commit()
             conn.close()
             
-            print(f"✅ Claim attempt logged (SUCCESS) for user {claimer_email}")
-            print(f"✅ Claim record created: ID {claim_id} for item {found_item_id}")
-            
             return jsonify({
                 'verified': True,
                 'claim_id': claim_id,
@@ -1049,9 +1034,6 @@ def verify_ownership():
             conn.close()
             
             required_correct = max(1, int(total_questions * 0.67))
-            
-            print(f"❌ Claim attempt logged (FAILED) for user {claimer_email}")
-            print(f"   Score: {correct_answers}/{total_questions} ({success_rate*100:.1f}%)")
             
             return jsonify({
                 'verified': False,
@@ -1378,7 +1360,6 @@ def login():
         return jsonify({'error': 'Email and password are required'}), 400
     
     if not email.endswith('@kent.edu'):
-        print("❌ Login failed: Not @kent.edu email")
         return jsonify({'error': 'Only Kent State (@kent.edu) email addresses are allowed'}), 400
     
     # Get user from database
@@ -3212,7 +3193,7 @@ def update_claim_attempt():
             return jsonify({'error': 'Claim attempt not found'}), 404
         
         # If marking as successful (potential claimer), DO NOT mark item as CLAIMED yet
-        # Just create notification for potential claimer
+        # Create notification record for potential claimer
         if success:
             # Check if this is the FIRST potential claimer
             cursor.execute('''
@@ -6150,7 +6131,7 @@ def get_public_profile(user_id):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Get basic user info (excluding email and phone)
+        # Query user profile data (excluding sensitive PII fields)
         cursor.execute('''
             SELECT id, first_name, last_name, full_name, created_at
             FROM users
