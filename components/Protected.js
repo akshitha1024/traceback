@@ -53,14 +53,10 @@ export default function Protected({ children, requireProfile = true }) {
         if (requireProfile && pathname !== "/profile/create") {
           // First check localStorage for quick validation
           if (user.profile_completed === true || user.profile_completed === 1) {
-            console.log("✅ Profile marked complete in localStorage");
             setProfileComplete(true);
             setIsLoading(false);
             return;
           }
-          
-          // If not in localStorage, check backend
-          console.log("🔍 Checking profile completion with backend for user:", user.id);
           
           try {
             const profileResponse = await fetch(`http://localhost:5000/api/profile/${user.id}`);
@@ -74,20 +70,13 @@ export default function Protected({ children, requireProfile = true }) {
             }
             
             const profileData = await profileResponse.json();
-            console.log("📦 Profile data from backend:", profileData);
             
             // Check if profile is complete - prioritize profile_completed flag
             const profile = profileData.profile || profileData;
             const isComplete = profile.profile_completed === true || 
                              profile.profile_completed === 1;
             
-            console.log("Profile completion check:", {
-              profile_completed: profile.profile_completed,
-              isComplete
-            });
-            
             if (!isComplete) {
-              console.log("⚠️ Profile incomplete, redirecting to profile creation");
               router.replace("/profile/create");
               return;
             }
@@ -99,7 +88,6 @@ export default function Protected({ children, requireProfile = true }) {
               profile_completed: true 
             };
             localStorage.setItem("user", JSON.stringify(updatedUser));
-            console.log("✅ Profile marked complete, updated localStorage with full profile data");
             
             setProfileComplete(true);
           } catch (fetchError) {

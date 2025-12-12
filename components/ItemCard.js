@@ -12,13 +12,13 @@ export default function ItemCard({ item, type, id, title, location, date, ago, c
   const [founderInfo, setFounderInfo] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   
-  // Handle both old prop format (individual props) and new format (item object)
+  // Normalize prop structure for backward compatibility
   const itemData = item || { id, type, title, location, date, ago, category };
   
-  // Use the type from the item data (which should now be correctly set in Dashboard)
+  // Resolve item type from data hierarchy
   const finalType = itemData.type || type || 'LOST';
   
-  // Check if this is a private item (from API flag)
+  // Evaluate privacy status from API response flags
   const isPrivate = itemData.is_currently_private === true || itemData.isPrivate === true;
   
   // Check if this item is claimed
@@ -32,25 +32,11 @@ export default function ItemCard({ item, type, id, title, location, date, ago, c
     }
   }, []);
   
-  // Check if current user is the owner/reporter of this item (works for both found and lost)
+  // Verify ownership by comparing authenticated user with item reporter
   const isMyItem = currentUser && (
     (itemData.finder_email && currentUser.email?.toLowerCase() === itemData.finder_email.toLowerCase()) ||
     (itemData.user_email && currentUser.email?.toLowerCase() === itemData.user_email.toLowerCase())
   );
-  
-  // Debug logging for image visibility
-  if (itemData.image_filename) {
-    console.log('🖼️ IMAGE DEBUG:', {
-      title: itemData.title,
-      type: finalType,
-      image_filename: itemData.image_filename,
-      currentUserEmail: currentUser?.email,
-      finder_email: itemData.finder_email,
-      user_email: itemData.user_email,
-      isMyItem: isMyItem,
-      willShowImage: !!(itemData.image_filename && isMyItem)
-    });
-  }
   
   // CRITICAL: Do NOT render private items
   // Only hide claimed items if showClaimed is false (browse views)
@@ -62,14 +48,6 @@ export default function ItemCard({ item, type, id, title, location, date, ago, c
   if (isClaimed && !showClaimed) {
     return null;
   }
-  
-  console.log(`ItemCard Debug (PUBLIC):`, {
-    title: itemData.title,
-    type: finalType,
-    is_currently_private: itemData.is_currently_private,
-    created_at: itemData.created_at,
-    has_location_name: !!itemData.location_name
-  });
   
   // Create corrected item data with proper type
   const correctedItemData = { ...itemData, type: finalType };

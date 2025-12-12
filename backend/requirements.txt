@@ -1,13 +1,13 @@
-# Requirements for Flask backend
+# Flask Backend Requirements
 flask==2.3.3
 flask-sqlalchemy==3.0.5
 flask-cors==4.0.0
 flask-jwt-extended==4.5.2
 werkzeug==2.3.7
 python-dotenv==1.0.0
-pillow==10.4.0
 marshmallow==3.20.1
 flask-marshmallow==0.15.0
 marshmallow-sqlalchemy==0.29.0
 schedule==1.2.0
 pytz==2024.1
+Pillow==10.4.0

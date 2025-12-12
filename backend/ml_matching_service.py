@@ -1,6 +1,6 @@
 """
-ML Matching Service for Lost and Found Items
-Combines text similarity, image similarity, and various features for intelligent matching
+Machine Learning Matching Engine
+Implements multi-modal similarity scoring using semantic embeddings and feature vectors
 """
 
 import os
@@ -10,24 +10,23 @@ from sentence_transformers import SentenceTransformer
 import sqlite3
 from pathlib import Path
 
-# Try to import image similarity (optional)
+# Conditional import for image feature extraction module
 try:
     from image_similarity import image_similarity
     IMAGE_SIMILARITY_AVAILABLE = True
 except ImportError:
     IMAGE_SIMILARITY_AVAILABLE = False
-    print("WARNING: Image similarity not available (missing dependencies). Image matching will be disabled.")
 
 
 class MLMatchingService:
     def __init__(self, db_path, model_path=None, upload_folder=None):
         """
-        Initialize the ML matching service
+        Initialize ML matching engine with transformer model and database connection
         
         Args:
-            db_path: Path to the database
-            model_path: Path to the text similarity model
-            upload_folder: Path to the uploads folder for images
+            db_path: SQLite database file path
+            model_path: Pre-trained sentence transformer model directory
+            upload_folder: Directory containing uploaded item images
         """
         self.db_path = db_path
         
@@ -35,9 +34,7 @@ class MLMatchingService:
         if model_path is None:
             model_path = os.path.join(os.path.dirname(__file__), 'traceback_text_similarity_model')
         
-        print(f"Loading text similarity model from {model_path}...")
         self.text_model = SentenceTransformer(model_path)
-        print("Text similarity model loaded successfully!")
         
         # Set upload folder
         if upload_folder is None:
@@ -53,22 +50,22 @@ class MLMatchingService:
     
     def text_similarity(self, desc1, desc2):
         """
-        Calculate text similarity between two descriptions using the trained model
+        Compute semantic similarity using sentence transformer embeddings and cosine distance
         
         Args:
-            desc1: First description
-            desc2: Second description
+            desc1: First text description
+            desc2: Second text description
             
         Returns:
-            Similarity score between 0 and 1
+            Normalized similarity score [0.0, 1.0]
         """
         if not desc1 or not desc2:
             return 0.0
         
-        # Generate embeddings
+        # Encode text into dense vector representations
         embeddings = self.text_model.encode([desc1, desc2])
         
-        # Calculate cosine similarity
+        # Compute cosine similarity between embedding vectors
         similarity = np.dot(embeddings[0], embeddings[1]) / (
             np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])
         )
@@ -78,14 +75,14 @@ class MLMatchingService:
     
     def image_sim(self, img1_path, img2_path):
         """
-        Calculate image similarity between two images
+        Compute visual similarity using deep learning feature extraction
         
         Args:
-            img1_path: Path to first image
-            img2_path: Path to second image
+            img1_path: Filesystem path to first image
+            img2_path: Filesystem path to second image
             
         Returns:
-            Similarity score between 0 and 1
+            Normalized similarity score [0.0, 1.0]
         """
         if not IMAGE_SIMILARITY_AVAILABLE:
             return 0.0
@@ -104,19 +101,18 @@ class MLMatchingService:
         try:
             return image_similarity(full_path1, full_path2)
         except Exception as e:
-            print(f"Error calculating image similarity: {e}")
             return 0.0
     
     def location_similarity(self, loc1, loc2):
         """
-        Binary location similarity (exact match)
+        Binary matching for categorical location data
         
         Args:
-            loc1: First location
-            loc2: Second location
+            loc1: First location identifier
+            loc2: Second location identifier
             
         Returns:
-            1.0 if exact match, 0.0 otherwise
+            Binary score: 1.0 (match) or 0.0 (mismatch)
         """
         if not loc1 or not loc2:
             return 0.0
@@ -125,14 +121,14 @@ class MLMatchingService:
     
     def category_similarity(self, cat1, cat2):
         """
-        Binary category similarity (exact match)
+        Binary matching for item category taxonomy
         
         Args:
-            cat1: First category
-            cat2: Second category
+            cat1: First category label
+            cat2: Second category label
             
         Returns:
-            1.0 if exact match, 0.0 otherwise
+            Binary score: 1.0 (match) or 0.0 (mismatch)
         """
         if not cat1 or not cat2:
             return 0.0
@@ -141,14 +137,14 @@ class MLMatchingService:
     
     def color_similarity(self, color1, color2):
         """
-        Binary color similarity (exact match)
+        Binary matching for color attributes
         
         Args:
-            color1: First color
-            color2: Second color
+            color1: First color descriptor
+            color2: Second color descriptor
             
         Returns:
-            1.0 if exact match, 0.0 otherwise
+            Binary score: 1.0 (match) or 0.0 (mismatch)
         """
         if not color1 or not color2:
             return 0.0
@@ -157,15 +153,15 @@ class MLMatchingService:
     
     def date_similarity_linear(self, date1, date2, window=14):
         """
-        Calculate date similarity using linear decay
+        Compute temporal similarity using linear decay function
         
         Args:
-            date1: First date (string or datetime)
-            date2: Second date (string or datetime)
-            window: Number of days for full decay (default 14 days)
+            date1: First timestamp (ISO format string or datetime object)
+            date2: Second timestamp (ISO format string or datetime object)
+            window: Decay period in days (default: 14)
             
         Returns:
-            Similarity score between 0 and 1
+            Time-based similarity score [0.0, 1.0]
         """
         if not date1 or not date2:
             return 0.0
@@ -183,33 +179,30 @@ class MLMatchingService:
             # Linear decay
             return max(0.0, 1.0 - (delta_days / window))
         except Exception as e:
-            print(f"Error calculating date similarity: {e}")
             return 0.0
     
     def calculate_match_score(self, lost_item, found_item):
         """
-        Calculate comprehensive match score between a lost item and found item
+        Aggregate multi-modal similarity scores using weighted combination
         
-        Formula:
-        Match Score = 0.40*(Description_sim) + 0.25*(Image_sim) + 0.15*(Location_sim) +
-                      0.10*(Category_sim) + 0.05*(Color_sim) + 0.05*(Date_sim)
-        
-        If either item doesn't have an image, image similarity is ignored and weights are redistributed.
+        Scoring Model:
+        Base weights: desc=35%, img=35%, loc=13%, cat=7%, color=5%, date=5%
+        Dynamic redistribution applied when image features unavailable
         
         Args:
-            lost_item: Dictionary containing lost item data
-            found_item: Dictionary containing found item data
+            lost_item: Lost item feature dictionary
+            found_item: Found item feature dictionary
             
         Returns:
-            Dictionary with match score and individual component scores
+            Dictionary containing aggregate score and component similarities
         """
-        # Calculate individual similarities
+        # Compute similarity across all feature dimensions
         desc_sim = self.text_similarity(
             lost_item.get('description', ''),
             found_item.get('description', '')
         )
         
-        # Check if both items have images
+        # Determine if visual comparison is possible
         lost_img = lost_item.get('image_filename', '')
         found_img = found_item.get('image_filename', '')
         has_both_images = bool(lost_img and found_img)
@@ -463,22 +456,3 @@ class MLMatchingService:
         return all_matches
 
 
-# Test function
-if __name__ == '__main__':
-    db_path = os.path.join(os.path.dirname(__file__), 'traceback_100k.db')
-    
-    print("Initializing ML Matching Service...")
-    service = MLMatchingService(db_path)
-    
-    print("\nTesting text similarity:")
-    desc1 = "Lost brown leather wallet near library"
-    desc2 = "Found brown wallet at library entrance"
-    desc3 = "Found blue backpack in cafeteria"
-    
-    sim1 = service.text_similarity(desc1, desc2)
-    sim2 = service.text_similarity(desc1, desc3)
-    
-    print(f"Similar descriptions: {sim1:.4f}")
-    print(f"Different descriptions: {sim2:.4f}")
-    
-    print("\nML Matching Service initialized successfully!")

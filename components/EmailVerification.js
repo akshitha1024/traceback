@@ -241,8 +241,6 @@ const ReportItemForm = () => {
   const handleEmailVerified = (email) => {
     setIsEmailVerified(true);
     setVerifiedEmail(email);
-    console.log('Email verified:', email);
-    // Now you can proceed with item submission
   };
 
   return (

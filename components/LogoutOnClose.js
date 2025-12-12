@@ -2,17 +2,16 @@
 import { useEffect } from 'react';
 
 /**
- * LogoutOnClose Component
- * Automatically logs out the user when they close the tab or window
- * Does NOT logout on refresh or navigation
+ * Session termination handler for browser tab/window closure
+ * Clears authentication state on tab close while preserving session during navigation
  */
 export default function LogoutOnClose() {
   useEffect(() => {
-    // Check if we're coming back from a tab close
+    // Detect session restoration after tab closure
     const wasTabClosed = !sessionStorage.getItem('tabOpen');
     
     if (wasTabClosed) {
-      // Tab was closed and reopened - logout
+      // Clear authentication state on tab restoration
       localStorage.removeItem('sessionToken');
       localStorage.removeItem('user');
       localStorage.removeItem('sessionExpiresAt');
@@ -21,14 +20,12 @@ export default function LogoutOnClose() {
       localStorage.removeItem('studentProfilePhoto');
       localStorage.removeItem('pendingVerificationEmail');
       localStorage.removeItem('postVerifyRedirect');
-      
-      console.log('🔒 Session cleared - tab was closed');
     }
     
-    // Mark tab as open
+    // Set session tracking flag
     sessionStorage.setItem('tabOpen', 'true');
     
-    // Handle page visibility changes
+    // Register visibility state change handler
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // Check if still logged in
@@ -44,7 +41,6 @@ export default function LogoutOnClose() {
           localStorage.removeItem('pendingVerificationEmail');
           localStorage.removeItem('postVerifyRedirect');
           
-          console.log('🔒 Session cleared - tab was reopened');
           window.location.reload();
         }
       }
