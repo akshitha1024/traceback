@@ -1,3 +1,8 @@
+# Build Tools
+setuptools>=65.5.0
+wheel>=0.38.0
+pip>=23.0
+
 # Flask Backend Requirements
 flask==2.3.3
 flask-sqlalchemy==3.0.5
