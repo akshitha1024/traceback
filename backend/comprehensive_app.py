@@ -6584,30 +6584,33 @@ Kent State University
 if __name__ == '__main__':
     # Check if database exists
     if not os.path.exists(DB_PATH):
-        print("❌ Database not found!")
-        print("📋 Please run: python generate_100k_database.py")
-        print("   This will create the database with 100,000 realistic items")
+        print("[ERROR] Database not found!")
+        print("[INFO] Please run: python generate_100k_database.py")
+        print("[INFO] This will create the database with 100,000 realistic items")
         exit(1)
     
-    print("🚀 Starting TrackeBack Comprehensive Backend")
-    print(f"📂 Database: {DB_PATH}")
-    print("📊 Features: 100K items, Kent State locations, Security verification")
+    print("[INFO] Starting TrackeBack Comprehensive Backend")
+    print(f"[INFO] Database: {DB_PATH}")
+    print("[INFO] Features: 100K items, Kent State locations, Security verification")
     
     # Register profile management endpoints
     create_profile_endpoints(app)
     
     # Run initial cleanup of old claimed items
-    print("🧹 Running initial cleanup of old claimed items...")
+    print("[INFO] Running initial cleanup of old claimed items...")
     cleanup_old_claimed_items()
     
-    print("🌐 Server running on http://localhost:5000")
-    print("🏠 API Info: http://localhost:5000/")
-    print("💚 Health Check: http://localhost:5000/health")
-    print("📱 Categories: http://localhost:5000/api/categories")
-    print("📍 Locations: http://localhost:5000/api/locations")
-    print("❌ Lost Items: http://localhost:5000/api/lost-items")
-    print("✅ Found Items: http://localhost:5000/api/found-items")
-    print("⭐ Reviews: http://localhost:5000/api/reviews")
-    print("👤 Profile Management: http://localhost:5000/api/profile/{user_id}")
+    print("[INFO] Server running on http://0.0.0.0:5000")
+    print("[INFO] API Info: http://localhost:5000/")
+    print("[INFO] Health Check: http://localhost:5000/health")
+    print("[INFO] Categories: http://localhost:5000/api/categories")
+    print("[INFO] Locations: http://localhost:5000/api/locations")
+    print("[INFO] Lost Items: http://localhost:5000/api/lost-items")
+    print("[INFO] Found Items: http://localhost:5000/api/found-items")
+    print("[INFO] Reviews: http://localhost:5000/api/reviews")
+    print("[INFO] Profile Management: http://localhost:5000/api/profile/{user_id}")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get port from environment variable or use default
+    port = int(os.environ.get('PORT', 5000))
+    
+    app.run(debug=False, host='0.0.0.0', port=port)
