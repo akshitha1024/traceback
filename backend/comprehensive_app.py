@@ -16,8 +16,16 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 import uuid
 from profile_manager import create_profile_endpoints
-from ml_matching_service import MLMatchingService
 import pytz
+
+# Optional ML service - will be loaded later if available
+try:
+    from ml_matching_service import MLMatchingService
+    ML_SERVICE_AVAILABLE = True
+except ImportError as e:
+    ML_SERVICE_AVAILABLE = False
+    print(f"[WARNING] ML service not available: {e}")
+    print("[INFO] App will work without ML matching features")
 
 # Timezone configuration - All times in ET (Eastern Time)
 ET = pytz.timezone('America/New_York')
@@ -148,13 +156,15 @@ notification_service = None
 def get_ml_service():
     """Get or initialize ML matching service"""
     global ml_service
+    if not ML_SERVICE_AVAILABLE:
+        return None
     if ml_service is None:
         try:
-            print("🤖 Initializing ML Matching Service...")
+            print("[INFO] Initializing ML Matching Service...")
             ml_service = MLMatchingService(DB_PATH, upload_folder=UPLOAD_FOLDER)
-            print("✅ ML Matching Service initialized!")
+            print("[INFO] ML Matching Service initialized!")
         except Exception as e:
-            print(f"❌ Error initializing ML service: {e}")
+            print(f"[WARNING] Error initializing ML service: {e}")
             return None
     return ml_service
 
