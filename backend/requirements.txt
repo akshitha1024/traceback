@@ -11,3 +11,4 @@ marshmallow-sqlalchemy==0.29.0
 schedule==1.2.0
 pytz==2024.1
 Pillow==10.4.0
+gunicorn==21.2.0
